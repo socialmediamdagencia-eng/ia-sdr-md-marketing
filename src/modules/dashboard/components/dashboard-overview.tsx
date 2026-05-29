@@ -11,6 +11,7 @@ import {
   scoringModule,
   settingsModule
 } from "@/modules";
+import { getSystemHealth } from "@/modules/core/services/system-health";
 
 const metrics = [
   { label: "Módulos planejados", value: "11", color: "text-ink" },
@@ -33,7 +34,9 @@ const modules = [
   settingsModule
 ];
 
-export function DashboardOverview() {
+export async function DashboardOverview() {
+  const systemHealth = await getSystemHealth();
+
   return (
     <section className="space-y-6">
       <div className="rounded-md border border-line bg-white p-6 shadow-soft">
@@ -54,6 +57,42 @@ export function DashboardOverview() {
             <p className={`mt-2 text-3xl font-semibold ${metric.color}`}>{metric.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-md border border-line bg-white p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Infraestrutura
+            </p>
+            <h3 className="mt-1 text-base font-semibold text-ink">Status Supabase</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{systemHealth.summary}</p>
+          </div>
+          <span
+            className={`inline-flex w-fit items-center rounded-md border px-3 py-1 text-xs font-medium ${
+              systemHealth.status === "ready"
+                ? "border-teal/20 bg-teal/10 text-teal"
+                : "border-coral/20 bg-coral/10 text-coral"
+            }`}
+          >
+            {systemHealth.status === "ready" ? "Conectado" : "Atencao"}
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {systemHealth.checks.map((check) => (
+            <div key={check.label} className="rounded-md border border-line bg-mist p-3">
+              <p className="text-sm font-medium text-ink">{check.label}</p>
+              <p
+                className={`mt-1 text-xs ${
+                  check.status === "ready" ? "text-teal" : "text-coral"
+                }`}
+              >
+                {check.detail}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

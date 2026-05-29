@@ -1,5 +1,7 @@
 import { DashboardOverview } from "@/modules/dashboard/components/dashboard-overview";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
   return <DashboardOverview />;
 }
