@@ -82,7 +82,7 @@ export async function getCrmCounts() {
   const supabase = createSupabaseAdminClient();
   const organization = await getDefaultOrganization();
 
-  const [companies, leads, activities] = await Promise.all([
+  const [companies, leads, leadRows, activities, campaigns] = await Promise.all([
     supabase
       .from("companies")
       .select("id", { count: "exact", head: true })
@@ -92,14 +92,67 @@ export async function getCrmCounts() {
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organization.id),
     supabase
+      .from("leads")
+      .select("status, temperature, origin")
+      .eq("organization_id", organization.id),
+    supabase
       .from("activities")
       .select("id", { count: "exact", head: true })
+      .eq("organization_id", organization.id),
+    supabase
+      .from("prospecting_campaigns")
+      .select("id, requested_quantity, found_quantity", { count: "exact" })
       .eq("organization_id", organization.id)
   ]);
+
+  const statusCounts = {
+    new: 0,
+    qualified: 0,
+    contacted: 0,
+    replied: 0,
+    meeting_scheduled: 0,
+    proposal_sent: 0,
+    won: 0,
+    lost: 0,
+    archived: 0
+  };
+
+  const temperatureCounts = {
+    cold: 0,
+    warm: 0,
+    hot: 0
+  };
+
+  for (const lead of leadRows.data ?? []) {
+    const status = text(lead.status) as keyof typeof statusCounts;
+    const temperature = text(lead.temperature) as keyof typeof temperatureCounts;
+
+    if (status in statusCounts) {
+      statusCounts[status] += 1;
+    }
+
+    if (temperature in temperatureCounts) {
+      temperatureCounts[temperature] += 1;
+    }
+  }
+
+  const requestedProspects = (campaigns.data ?? []).reduce(
+    (total, campaign) => total + numberValue(campaign.requested_quantity),
+    0
+  );
+  const foundProspects = (campaigns.data ?? []).reduce(
+    (total, campaign) => total + numberValue(campaign.found_quantity),
+    0
+  );
 
   return {
     companies: companies.count ?? 0,
     leads: leads.count ?? 0,
-    activities: activities.count ?? 0
+    activities: activities.count ?? 0,
+    campaigns: campaigns.count ?? 0,
+    requestedProspects,
+    foundProspects,
+    statusCounts,
+    temperatureCounts
   };
 }

@@ -54,8 +54,13 @@ export async function DashboardOverview() {
 
       <CommercialCharts
         activities={crmCounts.activities}
+        campaigns={crmCounts.campaigns}
         companies={crmCounts.companies}
+        foundProspects={crmCounts.foundProspects}
         leads={crmCounts.leads}
+        requestedProspects={crmCounts.requestedProspects}
+        statusCounts={crmCounts.statusCounts}
+        temperatureCounts={crmCounts.temperatureCounts}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
