@@ -34,8 +34,7 @@ export const navigationItems: NavigationItem[] = [
   {
     label: "Mensagens",
     href: "/mensagens",
-    icon: "M",
-    disabled: true
+    icon: "M"
   },
   {
     label: "Reuniões",

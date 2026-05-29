@@ -12,6 +12,7 @@
   - `/empresas`
   - `/pipeline`
   - `/dashboard`
+  - `/mensagens`
   - `/reunioes`
   - `/configuracoes`
 - Modulos independentes:
