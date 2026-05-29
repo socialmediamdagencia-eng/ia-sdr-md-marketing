@@ -9,6 +9,8 @@
 - Criacao automatica da organizacao padrao `MD Marketing`.
 - Registro de atividades para empresa criada e lead criado.
 - Dashboard com contadores reais de empresas, leads e atividades.
+- Base comercial inicial da MD Marketing em `docs/base-comercial-md-marketing.md`.
+- Ajuste inicial de cores para a identidade visual da MD Marketing.
 
 ## Validacao esperada
 
