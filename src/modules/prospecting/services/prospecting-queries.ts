@@ -9,6 +9,18 @@ function numberValue(value: unknown): number {
   return typeof value === "number" ? value : 0;
 }
 
+type CampaignRow = {
+  city?: unknown;
+  created_at?: unknown;
+  error_message?: unknown;
+  found_quantity?: unknown;
+  id?: unknown;
+  name?: unknown;
+  requested_quantity?: unknown;
+  segment?: unknown;
+  status?: unknown;
+};
+
 export type ProspectingCampaignSummary = {
   id: string;
   city: string;
@@ -25,7 +37,7 @@ export async function getProspectingCampaigns(): Promise<ProspectingCampaignSumm
   const supabase = createSupabaseAdminClient();
   const organization = await getDefaultOrganization();
 
-  const { data, error } = await supabase
+  const initial = await supabase
     .from("prospecting_campaigns")
     .select(
       "id, name, segment, city, requested_quantity, found_quantity, status, error_message, created_at"
@@ -33,6 +45,20 @@ export async function getProspectingCampaigns(): Promise<ProspectingCampaignSumm
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false })
     .limit(12);
+  let data: CampaignRow[] | null = initial.data as CampaignRow[] | null;
+  let error = initial.error;
+
+  if (error?.message.toLowerCase().includes("error_message")) {
+    const retry = await supabase
+      .from("prospecting_campaigns")
+      .select("id, name, segment, city, requested_quantity, found_quantity, status, created_at")
+      .eq("organization_id", organization.id)
+      .order("created_at", { ascending: false })
+      .limit(12);
+
+    data = retry.data as CampaignRow[] | null;
+    error = retry.error;
+  }
 
   if (error) {
     throw new Error(error.message);

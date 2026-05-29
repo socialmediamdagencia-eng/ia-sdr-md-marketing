@@ -1,11 +1,24 @@
 import { CampaignsTable } from "@/modules/prospecting/components/campaigns-table";
 import { ProspectingForm } from "@/modules/prospecting/components/prospecting-form";
-import { getProspectingCampaigns } from "@/modules/prospecting/services/prospecting-queries";
+import {
+  getProspectingCampaigns,
+  type ProspectingCampaignSummary
+} from "@/modules/prospecting/services/prospecting-queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProspectingPage() {
-  const campaigns = await getProspectingCampaigns();
+  let campaigns: ProspectingCampaignSummary[] = [];
+  let loadError = "";
+
+  try {
+    campaigns = await getProspectingCampaigns();
+  } catch (error) {
+    loadError =
+      error instanceof Error
+        ? error.message
+        : "Nao foi possivel carregar as campanhas agora.";
+  }
 
   return (
     <section className="space-y-6">
@@ -20,6 +33,11 @@ export default async function ProspectingPage() {
       </div>
 
       <ProspectingForm />
+      {loadError ? (
+        <div className="rounded-md border border-coral/20 bg-coral/10 p-4 text-sm text-coral">
+          A tela carregou, mas a lista de campanhas nao respondeu: {loadError}
+        </div>
+      ) : null}
       <CampaignsTable campaigns={campaigns} />
     </section>
   );
