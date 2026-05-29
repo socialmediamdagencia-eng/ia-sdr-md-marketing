@@ -52,6 +52,12 @@ export async function DashboardOverview() {
         </p>
       </div>
 
+      <CommercialCharts
+        activities={crmCounts.activities}
+        companies={crmCounts.companies}
+        leads={crmCounts.leads}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
           <div key={metric.label} className="rounded-md border border-line bg-white p-5">
@@ -60,12 +66,6 @@ export async function DashboardOverview() {
           </div>
         ))}
       </div>
-
-      <CommercialCharts
-        activities={crmCounts.activities}
-        companies={crmCounts.companies}
-        leads={crmCounts.leads}
-      />
 
       <div className="rounded-md border border-line bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
