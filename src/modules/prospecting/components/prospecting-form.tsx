@@ -6,14 +6,14 @@ export function ProspectingForm() {
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-teal">IA SDR</p>
-          <h2 className="mt-1 text-lg font-semibold text-ink">Nova prospeccao</h2>
+          <h2 className="mt-1 text-lg font-semibold text-ink">Nova busca real</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Informe o segmento, cidade e quantidade. A V1 gera empresas, decisores, leads,
-            score, dores, oportunidades e mensagem inicial.
+            Informe o segmento, cidade e quantidade. A IA SDR busca dados publicos reais,
+            salva empresas, contatos, leads, score, dores, oportunidades e mensagem inicial.
           </p>
         </div>
         <span className="w-fit rounded-md border border-line px-3 py-1 text-xs text-slate-600">
-          Simulador operacional V1
+          Busca publica experimental
         </span>
       </div>
 
@@ -55,7 +55,7 @@ export function ProspectingForm() {
           className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal/90"
           type="submit"
         >
-          Gerar leads
+          Buscar leads reais
         </button>
       </div>
     </form>

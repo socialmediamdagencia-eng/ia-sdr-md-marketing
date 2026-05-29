@@ -13,8 +13,9 @@ export default async function ProspectingPage() {
         <p className="text-sm font-medium text-teal">Prospecção</p>
         <h2 className="mt-2 text-2xl font-semibold text-ink">Motor de prospeccao IA SDR</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          A V1 cria campanhas operacionais para validar o fluxo: empresas, contatos
-          priorizando decisores, leads, score comercial, dores provaveis e mensagens.
+          A IA SDR busca dados publicos reais, cria empresas e contatos quando encontra
+          informacoes aproveitaveis, prioriza decisores e gera score, dores provaveis
+          e mensagens.
         </p>
       </div>
 

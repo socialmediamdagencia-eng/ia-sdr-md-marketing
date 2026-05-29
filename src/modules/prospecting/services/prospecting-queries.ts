@@ -13,6 +13,7 @@ export type ProspectingCampaignSummary = {
   id: string;
   city: string;
   createdAt: string;
+  errorMessage: string;
   foundQuantity: number;
   name: string;
   requestedQuantity: number;
@@ -26,7 +27,9 @@ export async function getProspectingCampaigns(): Promise<ProspectingCampaignSumm
 
   const { data, error } = await supabase
     .from("prospecting_campaigns")
-    .select("id, name, segment, city, requested_quantity, found_quantity, status, created_at")
+    .select(
+      "id, name, segment, city, requested_quantity, found_quantity, status, error_message, created_at"
+    )
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false })
     .limit(12);
@@ -39,6 +42,7 @@ export async function getProspectingCampaigns(): Promise<ProspectingCampaignSumm
     id: text(campaign.id),
     city: text(campaign.city),
     createdAt: text(campaign.created_at),
+    errorMessage: text(campaign.error_message),
     foundQuantity: numberValue(campaign.found_quantity),
     name: text(campaign.name),
     requestedQuantity: numberValue(campaign.requested_quantity),

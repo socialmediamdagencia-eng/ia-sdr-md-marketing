@@ -3,8 +3,10 @@ import type { ProspectingCampaignSummary } from "@/modules/prospecting/services/
 const statusLabels: Record<string, string> = {
   completed: "Concluida",
   draft: "Rascunho",
-  running: "Rodando",
-  failed: "Erro"
+  failed: "Erro",
+  partial: "Parcial",
+  pending: "Pendente",
+  processing: "Buscando"
 };
 
 export function CampaignsTable({ campaigns }: { campaigns: ProspectingCampaignSummary[] }) {
@@ -30,6 +32,7 @@ export function CampaignsTable({ campaigns }: { campaigns: ProspectingCampaignSu
                 <th className="px-4 py-3 font-medium">Solicitados</th>
                 <th className="px-4 py-3 font-medium">Encontrados</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Observacao</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -43,6 +46,7 @@ export function CampaignsTable({ campaigns }: { campaigns: ProspectingCampaignSu
                   <td className="px-4 py-3 text-slate-600">
                     {statusLabels[campaign.status] ?? campaign.status}
                   </td>
+                  <td className="px-4 py-3 text-slate-600">{campaign.errorMessage || "-"}</td>
                 </tr>
               ))}
             </tbody>
