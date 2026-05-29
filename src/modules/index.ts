@@ -1,0 +1,11 @@
+export { activitiesModule } from "@/modules/activities";
+export { calendarModule } from "@/modules/calendar";
+export { coreModule } from "@/modules/core";
+export { crmModule } from "@/modules/crm";
+export { dashboardModule } from "@/modules/dashboard";
+export { followUpModule } from "@/modules/follow-up";
+export { meetingsModule } from "@/modules/meetings";
+export { messagingModule } from "@/modules/messaging";
+export { prospectingModule } from "@/modules/prospecting";
+export { scoringModule } from "@/modules/scoring";
+export { settingsModule } from "@/modules/settings";
