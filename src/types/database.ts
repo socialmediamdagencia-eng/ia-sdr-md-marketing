@@ -18,6 +18,7 @@ export type Database = {
         };
         Insert: Partial<Database["public"]["Tables"]["organizations"]["Row"]> & { name: string };
         Update: Partial<Database["public"]["Tables"]["organizations"]["Row"]>;
+        Relationships: [];
       };
       profiles: {
         Row: {
@@ -38,6 +39,7 @@ export type Database = {
           email: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Row"]>;
+        Relationships: [];
       };
       organization_settings: JsonTable;
       companies: JsonTable;
@@ -98,4 +100,5 @@ type JsonTable = {
   Row: Record<string, JsonValue | undefined>;
   Insert: Record<string, JsonValue | undefined>;
   Update: Record<string, JsonValue | undefined>;
+  Relationships: [];
 };

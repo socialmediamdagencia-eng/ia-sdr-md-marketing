@@ -12,13 +12,7 @@ import {
   settingsModule
 } from "@/modules";
 import { getSystemHealth } from "@/modules/core/services/system-health";
-
-const metrics = [
-  { label: "Módulos planejados", value: "11", color: "text-ink" },
-  { label: "Ativos na V1", value: "6", color: "text-teal" },
-  { label: "Tabelas base", value: "28", color: "text-coral" },
-  { label: "Integrações externas", value: "0", color: "text-amber" }
-];
+import { getCrmCounts } from "@/modules/crm/services/crm-queries";
 
 const modules = [
   coreModule,
@@ -35,18 +29,25 @@ const modules = [
 ];
 
 export async function DashboardOverview() {
-  const systemHealth = await getSystemHealth();
+  const [systemHealth, crmCounts] = await Promise.all([getSystemHealth(), getCrmCounts()]);
+
+  const metrics = [
+    { label: "Empresas", value: String(crmCounts.companies), color: "text-ink" },
+    { label: "Leads", value: String(crmCounts.leads), color: "text-teal" },
+    { label: "Atividades", value: String(crmCounts.activities), color: "text-coral" },
+    { label: "Integracoes externas", value: "0", color: "text-amber" }
+  ];
 
   return (
     <section className="space-y-6">
       <div className="rounded-md border border-line bg-white p-6 shadow-soft">
-        <p className="text-sm font-medium text-teal">Etapa 1</p>
+        <p className="text-sm font-medium text-teal">Etapa 3</p>
         <h2 className="mt-2 text-2xl font-semibold text-ink">
-          Fundação da IA SDR da MD Marketing
+          CRM inicial da IA SDR da MD Marketing
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          Estrutura preparada para CRM, prospecção, score comercial, mensagens,
-          follow-up, reuniões, integrações, dashboard, atividades e configurações.
+          Fundacao conectada ao Supabase, com cadastro manual de empresas e leads
+          para validar o fluxo operacional da V1.
         </p>
       </div>
 
