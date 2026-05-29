@@ -13,6 +13,7 @@ import {
 } from "@/modules";
 import { getSystemHealth } from "@/modules/core/services/system-health";
 import { getCrmCounts } from "@/modules/crm/services/crm-queries";
+import { CommercialCharts } from "@/modules/dashboard/components/commercial-charts";
 
 const modules = [
   coreModule,
@@ -59,6 +60,12 @@ export async function DashboardOverview() {
           </div>
         ))}
       </div>
+
+      <CommercialCharts
+        activities={crmCounts.activities}
+        companies={crmCounts.companies}
+        leads={crmCounts.leads}
+      />
 
       <div className="rounded-md border border-line bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
