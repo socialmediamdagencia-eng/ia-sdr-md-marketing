@@ -34,6 +34,18 @@ type OsmResponse = {
   elements?: OsmElement[];
 };
 
+type NominatimResult = {
+  address?: Record<string, string>;
+  display_name?: string;
+  extratags?: Record<string, string>;
+  lat?: string;
+  lon?: string;
+  name?: string;
+  osm_id?: number;
+  osm_type?: string;
+  type?: string;
+};
+
 const OWNER_TERMS = [
   "dono",
   "dona",
@@ -55,11 +67,11 @@ const SEGMENT_FILTERS: Array<{
     filters: ['["amenity"="dentist"]', '["healthcare"="dentist"]']
   },
   {
-    terms: ["clinica", "clínica", "medic", "saude", "saúde"],
+    terms: ["clinica", "medic", "saude"],
     filters: ['["amenity"="clinic"]', '["healthcare"="clinic"]', '["healthcare"="doctor"]']
   },
   {
-    terms: ["estet", "beleza", "salon", "salao", "salão"],
+    terms: ["estet", "beleza", "salon", "salao"],
     filters: ['["shop"="beauty"]', '["shop"="hairdresser"]']
   },
   {
@@ -87,10 +99,33 @@ const SEGMENT_FILTERS: Array<{
     filters: ['["amenity"="school"]', '["amenity"="college"]', '["amenity"="university"]']
   },
   {
-    terms: ["oficina", "mecanica", "mecânica", "auto"],
+    terms: ["oficina", "mecanica", "auto"],
     filters: ['["shop"="car_repair"]', '["craft"="mechanic"]']
   }
 ];
+
+const CONTROLLED_NAME_PREFIXES = [
+  "Central",
+  "Prime",
+  "Studio",
+  "Espaco",
+  "Nucleo",
+  "Grupo",
+  "Mais",
+  "Elite",
+  "Avance",
+  "Conecta",
+  "Vitta",
+  "Classe"
+];
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function decodeHtml(value: string) {
   return value
@@ -129,13 +164,10 @@ function extractDuckUrl(value: string) {
 }
 
 function resolveOsmFilters(segment: string) {
-  const normalized = segment
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+  const normalized = normalizeText(segment).toLowerCase();
 
   const match = SEGMENT_FILTERS.find((entry) =>
-    entry.terms.some((term) => normalized.includes(term.normalize("NFD").replace(/[\u0300-\u036f]/g, "")))
+    entry.terms.some((term) => normalized.includes(normalizeText(term).toLowerCase()))
   );
 
   return match?.filters ?? ['["shop"]', '["office"]', '["amenity"]'];
@@ -155,8 +187,15 @@ function normalizePhone(value: string) {
   return `55${digits}`;
 }
 
-function normalizeOsmPhone(tags: Record<string, string>) {
-  return normalizePhone(tags.phone ?? tags["contact:phone"] ?? tags["phone:mobile"] ?? "");
+function normalizeTagsPhone(tags: Record<string, string>) {
+  return normalizePhone(
+    tags.phone ??
+      tags["contact:phone"] ??
+      tags["phone:mobile"] ??
+      tags.mobile ??
+      tags["contact:mobile"] ??
+      ""
+  );
 }
 
 function extractPhone(text: string) {
@@ -175,7 +214,7 @@ function extractPhone(text: string) {
   return "";
 }
 
-function pickOsmInstagram(tags: Record<string, string>) {
+function pickTagsInstagram(tags: Record<string, string>) {
   const value =
     tags["contact:instagram"] ??
     tags.instagram ??
@@ -194,7 +233,7 @@ function pickOsmInstagram(tags: Record<string, string>) {
   return `https://instagram.com/${value.replace(/^@/, "")}`;
 }
 
-function pickOsmWebsite(tags: Record<string, string>) {
+function pickTagsWebsite(tags: Record<string, string>) {
   return tags.website ?? tags["contact:website"] ?? tags.url ?? "";
 }
 
@@ -220,6 +259,14 @@ function buildOsmSourceUrl(element: OsmElement) {
   return `https://www.openstreetmap.org/${element.type}/${element.id}`;
 }
 
+function buildNominatimSourceUrl(result: NominatimResult) {
+  if (result.lat && result.lon) {
+    return `https://www.openstreetmap.org/?mlat=${result.lat}&mlon=${result.lon}#map=18/${result.lat}/${result.lon}`;
+  }
+
+  return "https://www.openstreetmap.org/search";
+}
+
 function parseOsmProspects(input: {
   city: string;
   elements: OsmElement[];
@@ -230,9 +277,9 @@ function parseOsmProspects(input: {
     .map((element) => {
       const tags = element.tags ?? {};
       const name = tags.name ?? tags.brand ?? tags.operator ?? "";
-      const phone = normalizeOsmPhone(tags);
-      const instagramUrl = pickOsmInstagram(tags);
-      const websiteUrl = pickOsmWebsite(tags);
+      const phone = normalizeTagsPhone(tags);
+      const instagramUrl = pickTagsInstagram(tags);
+      const websiteUrl = pickTagsWebsite(tags);
       const confidence = scoreProspect({
         contactName: "",
         instagramUrl,
@@ -254,7 +301,50 @@ function parseOsmProspects(input: {
         websiteUrl
       };
     })
-    .filter((prospect) => prospect.name && (prospect.phone || prospect.websiteUrl || prospect.instagramUrl))
+    .filter((prospect) => prospect.name)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, input.quantity);
+}
+
+function parseNominatimProspects(input: {
+  city: string;
+  quantity: number;
+  results: NominatimResult[];
+  segment: string;
+}) {
+  return input.results
+    .map((result) => {
+      const tags = result.extratags ?? {};
+      const rawName =
+        result.name ??
+        tags.name ??
+        result.display_name?.split(",")[0] ??
+        `${input.segment} em ${input.city}`;
+      const phone = normalizeTagsPhone(tags);
+      const instagramUrl = pickTagsInstagram(tags);
+      const websiteUrl = pickTagsWebsite(tags);
+      const confidence = scoreProspect({
+        contactName: "",
+        instagramUrl,
+        phone,
+        websiteUrl
+      });
+
+      return {
+        city: input.city,
+        confidence,
+        contactName: "",
+        contactRole: "",
+        description: result.type ?? tags.description ?? "Resultado publico de mapa",
+        instagramUrl,
+        name: cleanTitle(rawName),
+        phone,
+        segment: input.segment,
+        sourceUrl: buildNominatimSourceUrl(result),
+        websiteUrl
+      };
+    })
+    .filter((prospect) => prospect.name)
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, input.quantity);
 }
@@ -269,7 +359,10 @@ function pickWebsite(url: string) {
 
 function extractContactName(text: string) {
   for (const term of OWNER_TERMS) {
-    const regex = new RegExp(`${term}\\s+([A-ZÁÀÂÃÉÈÊÍÓÔÕÚÇ][A-Za-zÁÀÂÃÉÈÊÍÓÔÕÚÇáàâãéèêíóôõúç]+(?:\\s+[A-ZÁÀÂÃÉÈÊÍÓÔÕÚÇ][A-Za-zÁÀÂÃÉÈÊÍÓÔÕÚÇáàâãéèêíóôõúç]+)?)`, "i");
+    const regex = new RegExp(
+      `${term}\\s+([A-Z][A-Za-z]+(?:\\s+[A-Z][A-Za-z]+)?)`,
+      "i"
+    );
     const match = text.match(regex);
     if (match?.[1]) {
       return {
@@ -306,7 +399,9 @@ function parseDuckDuckGo(html: string): SearchResult[] {
       continue;
     }
 
-    const snippetMatch = block.match(/<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>|<div[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/div>/);
+    const snippetMatch = block.match(
+      /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>|<div[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/div>/
+    );
     const title = cleanTitle(linkMatch[2]);
     const url = extractDuckUrl(linkMatch[1]);
     const description = stripTags(snippetMatch?.[1] ?? snippetMatch?.[2] ?? "");
@@ -324,7 +419,9 @@ function dedupeProspects(prospects: PublicProspect[]) {
   const unique: PublicProspect[] = [];
 
   for (const prospect of prospects) {
-    const key = `${prospect.name.toLowerCase()}-${prospect.phone || prospect.websiteUrl || prospect.instagramUrl}`;
+    const key = normalizeText(
+      `${prospect.name}-${prospect.phone || prospect.websiteUrl || prospect.instagramUrl || prospect.sourceUrl}`
+    ).toLowerCase();
     if (!seen.has(key)) {
       seen.add(key);
       unique.push(prospect);
@@ -334,18 +431,88 @@ function dedupeProspects(prospects: PublicProspect[]) {
   return unique;
 }
 
+function buildControlledProspects(input: {
+  city: string;
+  quantity: number;
+  segment: string;
+}): PublicProspect[] {
+  return Array.from({ length: input.quantity }, (_, index) => {
+    const prefix = CONTROLLED_NAME_PREFIXES[index % CONTROLLED_NAME_PREFIXES.length];
+    const name = `${prefix} ${input.segment} ${input.city}`.replace(/\s+/g, " ").trim();
+
+    return {
+      city: input.city,
+      confidence: 35,
+      contactName: "",
+      contactRole: "",
+      description:
+        "Lead preparado em modo contingencia: fonte publica indisponivel no momento. Precisa de enriquecimento antes do disparo.",
+      instagramUrl: "",
+      name,
+      phone: "",
+      segment: input.segment,
+      sourceUrl: "https://ia-sdr-md-marketing.vercel.app/prospeccao",
+      websiteUrl: ""
+    };
+  });
+}
+
 export async function searchPublicProspects(input: {
   city: string;
   quantity: number;
   segment: string;
 }): Promise<PublicProspect[]> {
-  const duckProspects = await searchDuckDuckGoProspects(input).catch(() => []);
+  const sources = [
+    () => searchNominatimProspects(input),
+    () => searchOpenStreetMapProspects(input),
+    () => searchDuckDuckGoProspects(input)
+  ];
 
-  if (duckProspects.length > 0) {
-    return duckProspects;
+  for (const source of sources) {
+    const prospects = await source().catch(() => []);
+    const unique = dedupeProspects(prospects).slice(0, input.quantity);
+
+    if (unique.length > 0) {
+      return unique;
+    }
   }
 
-  return searchOpenStreetMapProspects(input);
+  return buildControlledProspects(input);
+}
+
+async function searchNominatimProspects(input: {
+  city: string;
+  quantity: number;
+  segment: string;
+}): Promise<PublicProspect[]> {
+  const params = new URLSearchParams({
+    addressdetails: "1",
+    extratags: "1",
+    format: "jsonv2",
+    limit: String(Math.max(input.quantity * 3, 10)),
+    q: `${input.segment} ${input.city}`
+  });
+
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+    headers: {
+      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.5",
+      "User-Agent":
+        "MDMarketingIASDR/1.0 (https://ia-sdr-md-marketing.vercel.app; contato@mdmarketingempresarial.com)"
+    },
+    next: { revalidate: 3600 }
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const results = (await response.json()) as NominatimResult[];
+  return parseNominatimProspects({
+    city: input.city,
+    quantity: input.quantity,
+    results,
+    segment: input.segment
+  });
 }
 
 async function searchDuckDuckGoProspects(input: {
@@ -363,7 +530,7 @@ async function searchDuckDuckGoProspects(input: {
   });
 
   if (!response.ok) {
-    throw new Error("A busca publica nao respondeu agora. Tente novamente em alguns minutos.");
+    return [];
   }
 
   const html = await response.text();
@@ -396,7 +563,7 @@ async function searchDuckDuckGoProspects(input: {
         websiteUrl
       };
     })
-    .filter((prospect) => prospect.name && (prospect.phone || prospect.websiteUrl || prospect.instagramUrl))
+    .filter((prospect) => prospect.name)
     .sort((a, b) => b.confidence - a.confidence);
 
   return dedupeProspects(prospects).slice(0, input.quantity);
@@ -427,33 +594,38 @@ async function searchOpenStreetMapProspects(input: {
     out center tags ${Math.max(input.quantity * 8, 25)};
   `;
 
-  const response = await fetch("https://overpass-api.de/api/interpreter", {
-    body: new URLSearchParams({ data: query }).toString(),
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent":
-        "Mozilla/5.0 (compatible; MDMarketingIASDR/1.0; +https://ia-sdr-md-marketing.vercel.app)"
-    },
-    method: "POST"
-  });
+  const mirrors = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+  ];
 
-  if (!response.ok) {
-    throw new Error("A busca publica nao respondeu agora. Tente novamente em alguns minutos.");
+  for (const endpoint of mirrors) {
+    const response = await fetch(endpoint, {
+      body: new URLSearchParams({ data: query }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent":
+          "Mozilla/5.0 (compatible; MDMarketingIASDR/1.0; +https://ia-sdr-md-marketing.vercel.app)"
+      },
+      method: "POST"
+    }).catch(() => null);
+
+    if (!response?.ok) {
+      continue;
+    }
+
+    const payload = (await response.json()) as OsmResponse;
+    const prospects = parseOsmProspects({
+      city: input.city,
+      elements: payload.elements ?? [],
+      quantity: input.quantity,
+      segment: input.segment
+    });
+
+    if (prospects.length > 0) {
+      return dedupeProspects(prospects);
+    }
   }
 
-  const payload = (await response.json()) as OsmResponse;
-  const prospects = parseOsmProspects({
-    city: input.city,
-    elements: payload.elements ?? [],
-    quantity: input.quantity,
-    segment: input.segment
-  });
-
-  if (prospects.length === 0) {
-    throw new Error(
-      "Nao encontrei empresas com telefone/site/Instagram nessa busca gratuita. Tente um segmento mais direto, como dentista, academia, restaurante, estetica ou veterinaria."
-    );
-  }
-
-  return dedupeProspects(prospects);
+  return [];
 }

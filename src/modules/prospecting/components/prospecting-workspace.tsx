@@ -47,7 +47,7 @@ export function ProspectingWorkspace() {
     const city = String(formData.get("city") ?? "").trim();
     const quantity = Number(formData.get("quantity") ?? 0);
 
-    setState({ message: "Buscando dados publicos e criando leads...", status: "loading" });
+    setState({ message: "Buscando fontes publicas e preparando leads...", status: "loading" });
 
     try {
       const response = await fetch("/api/prospecting/run", {
@@ -88,12 +88,12 @@ export function ProspectingWorkspace() {
             <p className="text-xs font-medium uppercase tracking-wide text-teal">IA SDR</p>
             <h2 className="mt-1 text-lg font-semibold text-ink">Nova busca real</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              A busca roda isolada em API. Se falhar, a pagina continua aberta e mostra o
-              motivo.
+              A busca tenta fontes publicas e salva o lead. Se uma fonte bloquear, o sistema
+              cria o registro como pendente de enriquecimento.
             </p>
           </div>
           <span className="w-fit rounded-md border border-line px-3 py-1 text-xs text-slate-600">
-            Busca publica experimental
+            Busca publica V1
           </span>
         </div>
 
@@ -150,7 +150,7 @@ export function ProspectingWorkspace() {
             disabled={state.status === "loading"}
             type="submit"
           >
-            {state.status === "loading" ? "Buscando..." : "Buscar leads reais"}
+            {state.status === "loading" ? "Buscando..." : "Buscar e salvar leads"}
           </button>
         </div>
       </form>

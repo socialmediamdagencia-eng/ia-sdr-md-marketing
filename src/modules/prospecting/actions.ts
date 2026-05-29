@@ -39,6 +39,10 @@ function buildFallbackContactName(prospect: PublicProspect) {
   return prospect.phone ? "Responsavel comercial" : "";
 }
 
+function isEnrichmentFallback(prospect: PublicProspect) {
+  return prospect.description.toLowerCase().includes("modo contingencia");
+}
+
 function buildApproachMessage(input: {
   city: string;
   companyName: string;
@@ -149,6 +153,7 @@ async function createProspectLead(input: {
         contact_name: input.prospect.contactName,
         contact_role: input.prospect.contactRole,
         description: input.prospect.description,
+        needs_enrichment: isEnrichmentFallback(input.prospect),
         instagram_url: input.prospect.instagramUrl,
         phone: input.prospect.phone,
         source_url: input.prospect.sourceUrl,
@@ -177,7 +182,9 @@ async function createProspectLead(input: {
       recommended_offer: analysis.recommendedOffer,
       objections: ["Ja tenho agencia", "Quanto custa?", "Me manda uma proposta"],
       buying_signals: ["Empresa localizada em busca publica", "Canal digital encontrado"],
-      ai_summary: `Lead real encontrado por busca publica para ${input.prospect.segment} em ${input.prospect.city}. Confianca dos dados: ${input.prospect.confidence}%.`
+      ai_summary: isEnrichmentFallback(input.prospect)
+        ? `Lead criado em contingencia para ${input.prospect.segment} em ${input.prospect.city}. Precisa enriquecer telefone, site e responsavel antes da abordagem.`
+        : `Lead encontrado por busca publica para ${input.prospect.segment} em ${input.prospect.city}. Confianca dos dados: ${input.prospect.confidence}%.`
     }),
     supabase.from("generated_messages").insert({
       organization_id: input.organizationId,
@@ -195,9 +202,15 @@ async function createProspectLead(input: {
       company_id: company.id,
       contact_id: contact.id,
       lead_id: lead.id,
-      type: "public_prospect_found",
-      title: "Lead real encontrado",
-      description: `${input.prospect.name} localizado via busca publica com confianca ${input.prospect.confidence}%.`
+      type: isEnrichmentFallback(input.prospect)
+        ? "prospect_enrichment_pending"
+        : "public_prospect_found",
+      title: isEnrichmentFallback(input.prospect)
+        ? "Lead pendente de enriquecimento"
+        : "Lead encontrado",
+      description: isEnrichmentFallback(input.prospect)
+        ? `${input.prospect.name} criado em contingencia porque a fonte publica nao respondeu com dados completos.`
+        : `${input.prospect.name} localizado via busca publica com confianca ${input.prospect.confidence}%.`
     })
   ]);
 }
@@ -231,7 +244,7 @@ export async function runProspectingCampaign(input: {
     .from("prospecting_campaigns")
     .insert({
       organization_id: organization.id,
-      name: `Busca real ${segment} em ${city}`,
+      name: `Prospeccao ${segment} em ${city}`,
       segment,
       city,
       requested_quantity: quantity,
