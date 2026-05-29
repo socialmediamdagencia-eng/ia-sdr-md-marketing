@@ -23,6 +23,14 @@ function formNumber(formData: FormData, key: string): number {
   return Math.max(1, Math.min(30, Math.round(value)));
 }
 
+function normalizeQuantity(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(1, Math.min(30, Math.round(value)));
+}
+
 function buildFallbackContactName(prospect: PublicProspect) {
   if (prospect.contactName) {
     return prospect.contactName;
@@ -195,9 +203,21 @@ async function createProspectLead(input: {
 }
 
 export async function runProspectingCampaignAction(formData: FormData) {
-  const segment = formText(formData, "segment");
-  const city = formText(formData, "city");
-  const quantity = formNumber(formData, "quantity");
+  await runProspectingCampaign({
+    city: formText(formData, "city"),
+    quantity: formNumber(formData, "quantity"),
+    segment: formText(formData, "segment")
+  });
+}
+
+export async function runProspectingCampaign(input: {
+  city: string;
+  quantity: number;
+  segment: string;
+}) {
+  const segment = input.segment.trim();
+  const city = input.city.trim();
+  const quantity = normalizeQuantity(input.quantity);
 
   if (!segment || !city || quantity <= 0) {
     throw new Error("Informe segmento, cidade e quantidade.");
