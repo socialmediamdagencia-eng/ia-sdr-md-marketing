@@ -43,22 +43,6 @@ function isEnrichmentFallback(prospect: PublicProspect) {
   return prospect.description.toLowerCase().includes("modo contingencia");
 }
 
-function buildApproachMessage(input: {
-  city: string;
-  companyName: string;
-  contactName: string;
-}) {
-  const greeting = input.contactName && input.contactName !== "Responsavel comercial"
-    ? `Oi ${input.contactName}, tudo bem?`
-    : "Oi, tudo bem?";
-
-  return `${greeting} Vi a ${input.companyName} em ${input.city} e percebi uma oportunidade de melhorar a captacao de clientes pelo digital.
-
-Sou da MD Marketing Empresarial. A gente ajuda empresas a transformar presenca digital em demanda e vendas, unindo conteudo, trafego e processo comercial.
-
-Faz sentido eu te mostrar uma ideia rapida para aumentar os contatos qualificados da ${input.companyName}?`;
-}
-
 async function createProspectLead(input: {
   campaignId: string;
   organizationId: string;
@@ -67,12 +51,17 @@ async function createProspectLead(input: {
   const supabase = createSupabaseAdminClient();
   const contactName = buildFallbackContactName(input.prospect);
 
-  const analysis = buildCommercialAnalysis({
+  const analysis = await buildCommercialAnalysis({
     city: input.prospect.city,
+    contactName: input.prospect.contactName,
+    description: input.prospect.description,
     hasInstagram: Boolean(input.prospect.instagramUrl),
     hasPhone: Boolean(input.prospect.phone),
+    instagramUrl: input.prospect.instagramUrl,
     name: input.prospect.name,
-    segment: input.prospect.segment
+    segment: input.prospect.segment,
+    sourceUrl: input.prospect.sourceUrl,
+    websiteUrl: input.prospect.websiteUrl
   });
 
   const { data: company, error: companyError } = await supabase
@@ -134,11 +123,7 @@ async function createProspectLead(input: {
     throw new Error(leadError.message);
   }
 
-  const message = buildApproachMessage({
-    city: input.prospect.city,
-    companyName: input.prospect.name,
-    contactName
-  });
+  const message = analysis.message;
 
   await Promise.all([
     supabase.from("prospecting_results").insert({
@@ -170,9 +155,8 @@ async function createProspectLead(input: {
       digital_presence_score: analysis.digitalPresenceScore,
       contactability_score: analysis.contactabilityScore,
       opportunity_score: analysis.opportunityScore,
-      reasoning:
-        "Score V1 calculado com base em segmento, cidade, presenca digital e dados publicos localizados.",
-      generated_by: "ia_sdr_public_search_v1"
+      reasoning: analysis.reasoning,
+      generated_by: analysis.generatedBy
     }),
     supabase.from("lead_insights").insert({
       organization_id: input.organizationId,
@@ -180,11 +164,11 @@ async function createProspectLead(input: {
       possible_pains: analysis.possiblePains,
       opportunities: analysis.opportunities,
       recommended_offer: analysis.recommendedOffer,
-      objections: ["Ja tenho agencia", "Quanto custa?", "Me manda uma proposta"],
-      buying_signals: ["Empresa localizada em busca publica", "Canal digital encontrado"],
+      objections: analysis.objections,
+      buying_signals: analysis.buyingSignals,
       ai_summary: isEnrichmentFallback(input.prospect)
         ? `Lead criado em contingencia para ${input.prospect.segment} em ${input.prospect.city}. Precisa enriquecer telefone, site e responsavel antes da abordagem.`
-        : `Lead encontrado por busca publica para ${input.prospect.segment} em ${input.prospect.city}. Confianca dos dados: ${input.prospect.confidence}%.`
+        : analysis.summary
     }),
     supabase.from("generated_messages").insert({
       organization_id: input.organizationId,
@@ -195,7 +179,7 @@ async function createProspectLead(input: {
       tone: "consultivo",
       message,
       status: "draft",
-      generated_by: "ia_sdr_public_search_v1"
+      generated_by: analysis.generatedBy
     }),
     supabase.from("activities").insert({
       organization_id: input.organizationId,

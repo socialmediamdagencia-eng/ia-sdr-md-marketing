@@ -1,4 +1,5 @@
 import type { MessageLeadCard } from "@/modules/messaging/services/message-queries";
+import { regenerateLeadAiAction } from "@/modules/messaging/actions";
 import { WhatsAppActionButton } from "@/modules/messaging/components/whatsapp-action-button";
 
 const temperatureLabels: Record<string, string> = {
@@ -44,6 +45,15 @@ export function MessageLeadBoard({ leads }: { leads: MessageLeadCard[] }) {
                 <span className="w-fit rounded-md border border-line px-3 py-1 text-xs text-slate-600">
                   {statusLabels[lead.status] ?? lead.status}
                 </span>
+                <form action={regenerateLeadAiAction}>
+                  <input name="lead_id" type="hidden" value={lead.id} />
+                  <button
+                    className="w-fit rounded-md border border-line px-3 py-2 text-sm font-semibold text-ink transition hover:border-teal hover:text-teal"
+                    type="submit"
+                  >
+                    Reprocessar IA
+                  </button>
+                </form>
                 {lead.whatsappUrl ? (
                   <WhatsAppActionButton
                     contactId={lead.contactId}
