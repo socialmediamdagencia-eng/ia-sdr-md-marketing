@@ -1,5 +1,8 @@
 import { analyzeConversationAction } from "@/modules/messaging/copilot-actions";
 import { getCopilotData } from "@/modules/messaging/services/copilot-queries";
+import { WhatsAppActionButton } from "@/modules/messaging/components/whatsapp-action-button";
+import { CopyButton } from "@/components/ui/copy-button";
+import { createMeetingAction } from "@/modules/meetings/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,16 @@ const statusLabels: Record<string, string> = {
 
 export default async function CopilotPage() {
   const data = await getCopilotData();
+  const meetingLeads = data.leads.map((lead) => ({
+    companyId: "",
+    companyName: lead.companyName,
+    createdAt: "",
+    id: lead.id,
+    nextFollowUpAt: "",
+    origin: "copiloto",
+    status: lead.status,
+    temperature: ""
+  }));
 
   return (
     <section className="space-y-6">
@@ -128,6 +141,105 @@ export default async function CopilotPage() {
                   </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#D7DFFF]">
                     {draft.message}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <CopyButton
+                      className="rounded-md border border-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                      label="Copiar resposta"
+                      text={draft.message}
+                    />
+                    {draft.whatsappUrl ? (
+                      <WhatsAppActionButton
+                        contactId={draft.contactId}
+                        leadId={draft.leadId}
+                        messageId={draft.id}
+                        url={draft.whatsappUrl}
+                      />
+                    ) : (
+                      <span className="rounded-md border border-white/10 px-3 py-2 text-sm text-[#94A3B8]">
+                        Sem WhatsApp
+                      </span>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <form action={createMeetingAction} className="rounded-md border border-line bg-white p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Reuniao pelo Copiloto
+          </p>
+          <h3 className="mt-1 text-xl font-semibold text-ink">Marcar reuniao sem sair da tela</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Quando o cliente aceitar conversar, agende aqui. O lead vai direto para
+            reuniao marcada no pipeline.
+          </p>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink">Lead</span>
+              <select className="h-11 w-full rounded-md border border-line px-3 text-sm" name="lead_id" required>
+                <option value="">Selecione</option>
+                {meetingLeads.map((lead) => (
+                  <option key={lead.id} value={lead.id}>
+                    {lead.companyName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink">Data e horario</span>
+              <input className="h-11 w-full rounded-md border border-line px-3 text-sm" name="starts_at" required type="datetime-local" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink">Duracao</span>
+              <input className="h-11 w-full rounded-md border border-line px-3 text-sm" defaultValue={45} max={180} min={15} name="duration_minutes" type="number" />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink">Link ou local</span>
+              <input className="h-11 w-full rounded-md border border-line px-3 text-sm" name="location" placeholder="Google Meet, presencial..." />
+            </label>
+            <label className="space-y-2 lg:col-span-2">
+              <span className="text-sm font-medium text-ink">Observacao</span>
+              <textarea className="min-h-24 w-full rounded-md border border-line px-3 py-2 text-sm" name="description" placeholder="Dor, contexto e combinados da conversa." />
+            </label>
+          </div>
+
+          <input name="title" type="hidden" value="Reuniao comercial MD Marketing" />
+          <div className="mt-5 flex justify-end">
+            <button className="rounded-md bg-teal px-5 py-3 text-sm font-semibold text-white" type="submit">
+              Marcar reuniao
+            </button>
+          </div>
+        </form>
+
+        <div className="rounded-md border border-line bg-white p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Historico comercial
+          </p>
+          <h3 className="mt-1 text-xl font-semibold text-ink">Ultimas interacoes registradas</h3>
+
+          <div className="mt-5 space-y-3">
+            {data.history.length === 0 ? (
+              <p className="rounded-md border border-line bg-mist p-4 text-sm text-slate-600">
+                Ainda nao ha conversas registradas. Ao abrir WhatsApp ou analisar uma
+                resposta, o historico aparece aqui.
+              </p>
+            ) : (
+              data.history.map((event) => (
+                <article key={event.id} className="rounded-md border border-line bg-mist p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-ink">{event.companyName}</p>
+                    <span className="rounded-md bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-line">
+                      {event.direction === "inbound" ? "Cliente" : "IA SDR"} / {event.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                    {event.content || "Evento sem mensagem registrada."}
                   </p>
                 </article>
               ))

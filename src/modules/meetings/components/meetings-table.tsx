@@ -19,6 +19,25 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function googleCalendarUrl(meeting: MeetingSummary) {
+  if (!meeting.startsAt || !meeting.endsAt) {
+    return "";
+  }
+
+  const start = new Date(meeting.startsAt).toISOString().replace(/[-:]/g, "").replace(".000", "");
+  const end = new Date(meeting.endsAt).toISOString().replace(/[-:]/g, "").replace(".000", "");
+  const details = [meeting.description, meeting.meetingUrl].filter(Boolean).join("\n\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    dates: `${start}/${end}`,
+    details,
+    location: meeting.location || meeting.meetingUrl,
+    text: meeting.title
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 export function MeetingsTable({ meetings }: { meetings: MeetingSummary[] }) {
   return (
     <div className="overflow-hidden rounded-md border border-line bg-white">
@@ -36,12 +55,13 @@ export function MeetingsTable({ meetings }: { meetings: MeetingSummary[] }) {
               <th className="px-4 py-3 font-medium">Início</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Link</th>
+              <th className="px-4 py-3 font-medium">Google Calendar</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {meetings.length === 0 ? (
               <tr>
-                <td className="px-4 py-8 text-center text-slate-500" colSpan={6}>
+                <td className="px-4 py-8 text-center text-slate-500" colSpan={7}>
                   Nenhuma reunião marcada ainda.
                 </td>
               </tr>
@@ -59,6 +79,20 @@ export function MeetingsTable({ meetings }: { meetings: MeetingSummary[] }) {
                     {meeting.meetingUrl ? (
                       <a className="text-teal underline-offset-4 hover:underline" href={meeting.meetingUrl}>
                         Abrir
+                      </a>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {googleCalendarUrl(meeting) ? (
+                      <a
+                        className="text-[#4D6BFF] underline-offset-4 hover:underline"
+                        href={googleCalendarUrl(meeting)}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Adicionar
                       </a>
                     ) : (
                       <span className="text-slate-400">-</span>

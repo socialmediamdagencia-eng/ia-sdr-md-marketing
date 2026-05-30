@@ -8,6 +8,8 @@
 - Criada acao para concluir follow-ups e registrar atividade.
 - Menu atualizado com Copiloto WhatsApp e Follow-up.
 - Fluxo gratis preservado: a IA escreve, classifica e organiza; o envio oficial automatico fica para integracao paga futura.
+- Copiloto agora mostra historico comercial, botao de copiar resposta, abertura do WhatsApp com texto pronto e agendamento de reuniao na mesma tela.
+- Reunioes agora geram link direto para adicionar no Google Calendar sem integracao paga.
 
 ## Fluxo operacional
 
