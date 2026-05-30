@@ -4,6 +4,7 @@ export type ConversationCopilotInput = {
   companyName: string;
   contactName?: string;
   conversation: string;
+  latestCustomerMessage?: string;
   objective: string;
   pains: string[];
   recommendedOffer: string;
@@ -16,12 +17,45 @@ export type ConversationCopilotOutput = {
   summary: string;
 };
 
+const generatedReplyMarkers = [
+  "consigo te passar uma direcao",
+  "que bom falar com voce",
+  "a md ajuda empresas",
+  "pela forma como a md trabalha",
+  "para eu te mostrar algo bem objetivo",
+  "hoje o maior desafio"
+];
+
+function normalize(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function stripSpeaker(line: string) {
+  return line.replace(/^(cliente|lead|contato|atendente|ia sdr|voce|você|tu):\s*/i, "").trim();
+}
+
+function isNoise(line: string) {
+  const cleaned = normalize(stripSpeaker(line));
+
+  if (!cleaned || cleaned.length < 2) {
+    return true;
+  }
+
+  if (/^\d{1,2}:\d{2}$/.test(cleaned) || /^(hoje|ontem|segunda-feira|terca-feira|quarta-feira|quinta-feira|sexta-feira|sabado|domingo)$/.test(cleaned)) {
+    return true;
+  }
+
+  return generatedReplyMarkers.some((marker) => cleaned.includes(marker));
+}
+
 function getOpening(input: ConversationCopilotInput) {
   const contactName = (input.contactName || input.companyName).split(/[|\-–—]/)[0].trim();
   const firstName =
-    contactName && !contactName.toLowerCase().includes("lead")
-      ? contactName.split(/\s+/)[0]
-      : "";
+    contactName && !normalize(contactName).includes("lead") ? contactName.split(/\s+/)[0] : "";
   const hour = Number(
     new Date().toLocaleString("pt-BR", {
       hour: "numeric",
@@ -34,40 +68,113 @@ function getOpening(input: ConversationCopilotInput) {
   return firstName ? `${greeting}, ${firstName}!` : `${greeting}!`;
 }
 
-function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutput {
-  const lower = input.conversation.toLowerCase();
-  const lastClientMessage = input.conversation
+function latestCustomerMessage(input: ConversationCopilotInput) {
+  if (input.latestCustomerMessage && !isNoise(input.latestCustomerMessage)) {
+    return stripSpeaker(input.latestCustomerMessage);
+  }
+
+  const lines = input.conversation
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => line.toLowerCase().startsWith("cliente:"))
-    .at(-1)
-    ?.toLowerCase();
-  const decisionText = lastClientMessage || lower;
-  const asksPrice = lower.includes("valor") || lower.includes("preco") || lower.includes("preço");
-  const askedProposal = lower.includes("proposta") || lower.includes("manda") || lower.includes("envia");
-  const wantsMarketing =
-    decisionText.includes("quero marketing") ||
-    decisionText.includes("marketing") ||
-    decisionText.includes("divulga") ||
-    decisionText.includes("anuncio") ||
-    decisionText.includes("anúncio") ||
-    decisionText.includes("trafego") ||
-    decisionText.includes("tráfego");
-  const meetingSignal =
-    decisionText.includes("reuniao") ||
-    decisionText.includes("reunião") ||
-    decisionText.includes("agenda") ||
-    decisionText.includes("horario") ||
-    decisionText.includes("horário");
+    .filter(Boolean);
+  const explicitCustomerLines = lines
+    .filter((line) => /^(cliente|lead|contato):/i.test(line))
+    .map(stripSpeaker)
+    .filter((line) => !isNoise(line));
+
+  if (explicitCustomerLines.length) {
+    return explicitCustomerLines.at(-1) ?? "";
+  }
+
+  const usefulLines = lines
+    .filter((line) => !/^(atendente|ia sdr|voce|você|tu):/i.test(line))
+    .map(stripSpeaker)
+    .filter((line) => !isNoise(line));
+
+  return usefulLines.at(-1) ?? "";
+}
+
+function hasAny(text: string, words: string[]) {
+  return words.some((word) => text.includes(normalize(word)));
+}
+
+function cleanReply(reply: string) {
+  const paragraphs = reply
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(paragraphs)).join("\n").trim();
+}
+
+function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutput {
+  const latest = latestCustomerMessage(input);
+  const decisionText = normalize(latest || input.conversation);
   const opening = getOpening(input);
+  const asksOnlyTraffic =
+    hasAny(decisionText, ["apenas trafego", "so trafego", "só trafego", "só tráfego", "apenas tráfego"]) ||
+    (hasAny(decisionText, ["voces tem", "vocês tem", "fazem", "trabalham"]) &&
+      hasAny(decisionText, ["trafego", "tráfego"]));
+  const trafficObjection =
+    hasAny(decisionText, ["trafego nao vende", "tráfego nao vende", "nao acho que trafego vende", "nao confio em gestor de trafego", "gestor de trafego", "me convença", "me convensa"]);
+  const asksPrice = hasAny(decisionText, ["valor", "preco", "preço", "quanto custa", "investimento"]);
+  const asksProposal = hasAny(decisionText, ["proposta", "manda", "envia"]);
+  const meetingSignal = hasAny(decisionText, ["reuniao", "reunião", "agenda", "horario", "horário"]);
+  const wantsMarketing = hasAny(decisionText, ["quero marketing", "marketing", "divulga", "anuncio", "anúncio", "trafego", "tráfego"]);
+  const casualCoffee = hasAny(decisionText, ["cafe", "café"]);
 
   if (meetingSignal) {
     return {
       leadStatus: "meeting_scheduled",
       nextAction: "Sugerir dois horarios e marcar reuniao no painel.",
-      reply:
-        `${opening} Perfeito. Para eu te mostrar algo bem objetivo, posso te chamar para uma conversa rapida de 20 minutos. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?`,
+      reply: cleanReply(
+        `${opening} Perfeito. Para ser objetivo, posso te mostrar em uma conversa rapida onde a MD consegue ajudar e quais caminhos fariam sentido para o seu momento. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?`
+      ),
       summary: "Lead demonstrou abertura para agenda. Prioridade: marcar reuniao."
+    };
+  }
+
+  if (asksOnlyTraffic) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Explicar escopo da MD e descobrir necessidade principal.",
+      reply: cleanReply(
+        `${opening} Nao apenas trafego. Trafego e uma ferramenta, mas a MD olha o processo inteiro: posicionamento, oferta, criativos, campanhas, captacao de leads e acompanhamento comercial. Dependendo do caso, o problema nem e anunciar mais, e arrumar a estrategia antes. Hoje voce sente que precisa vender mais pelo digital ou organizar melhor os leads que ja chegam?`
+      ),
+      summary: "Lead perguntou se a MD faz apenas trafego. Resposta deve ampliar o escopo e qualificar."
+    };
+  }
+
+  if (trafficObjection) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Contornar objecao sobre trafego e propor diagnostico.",
+      reply: cleanReply(
+        `${opening} Eu concordo com voce em um ponto: trafego sozinho nao vende. O que vende e uma oferta clara, uma comunicacao boa, atendimento rapido e um funil bem acompanhado. O trafego so acelera isso. Na MD, antes de falar em anuncio, a gente entende onde a venda esta travando. Se fizer sentido, posso olhar seu caso e te dizer se o caminho e trafego, posicionamento ou processo comercial.`
+      ),
+      summary: "Lead demonstrou resistencia a trafego. Contorno: concordar parcialmente e reposicionar a MD como estrategia comercial."
+    };
+  }
+
+  if (casualCoffee) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Responder casualmente e voltar ao objetivo comercial.",
+      reply: cleanReply(
+        `${opening} Cafe sempre ajuda. Voltando ao marketing: para eu te orientar sem te empurrar algo generico, hoje voce quer atrair mais clientes, melhorar a imagem da marca ou organizar melhor o processo de vendas?`
+      ),
+      summary: "Lead trouxe conversa casual. Resposta deve acompanhar o tom e retomar qualificacao."
+    };
+  }
+
+  if (asksPrice || asksProposal) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Qualificar antes de enviar proposta.",
+      reply: cleanReply(
+        `${opening} Consigo te passar uma direcao sim. Mas para nao te mandar um valor solto, preciso entender o principal objetivo: gerar mais leads, melhorar posicionamento ou estruturar melhor o comercial? Com isso eu te digo o caminho mais adequado.`
+      ),
+      summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
     };
   }
 
@@ -75,28 +182,20 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     return {
       leadStatus: "replied",
       nextAction: "Entender objetivo comercial e tentar marcar diagnostico rapido.",
-      reply:
-        `${opening} Que bom falar com voce. A MD ajuda empresas a transformar marketing em oportunidade comercial, nao so em postagem. Hoje voce quer mais clientes pelo digital, melhorar o posicionamento da marca ou organizar melhor as vendas?`,
+      reply: cleanReply(
+        `${opening} Que bom falar com voce. A MD trabalha marketing conectado a vendas, nao so postagem. Para eu entender seu momento: voce quer mais clientes chegando, melhorar a percepcao da marca ou organizar melhor o comercial?`
+      ),
       summary: "Lead demonstrou interesse direto em marketing. Proximo passo: qualificar objetivo comercial."
-    };
-  }
-
-  if (asksPrice || askedProposal) {
-    return {
-      leadStatus: "replied",
-      nextAction: "Qualificar antes de enviar proposta.",
-      reply:
-        `${opening} Consigo te passar uma direcao sim. Antes, para nao te mandar algo generico: hoje o maior desafio e gerar mais contatos qualificados, organizar o comercial ou melhorar o posicionamento digital?`,
-      summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
     };
   }
 
   return {
     leadStatus: "replied",
-    nextAction: "Continuar qualificacao e tentar levar para reuniao.",
-    reply:
-      `${opening} Entendi. Pela forma como a MD trabalha, o primeiro passo e enxergar onde a empresa esta perdendo oportunidade no digital e no comercial. Posso te mostrar uma leitura rapida da sua operacao e apontar 2 ou 3 melhorias praticas?`,
-    summary: "Lead respondeu. Proximo passo: conduzir para diagnostico curto."
+    nextAction: "Responder a ultima mensagem e conduzir para diagnostico.",
+    reply: cleanReply(
+      `${opening} Entendi. Para eu te responder de forma util, me conta uma coisa: hoje o maior desafio e atrair clientes novos, converter melhor quem ja chama ou deixar a marca mais forte no digital?`
+    ),
+    summary: "Lead respondeu. Proximo passo: entender dor principal."
   };
 }
 
@@ -143,12 +242,23 @@ export async function analyzeConversation(
     const content = await generateChatCompletion([
       {
         content:
-          "Voce e a IA SDR da MD Marketing. Analise conversas de WhatsApp e gere a proxima resposta comercial. Responda somente JSON valido.",
+          "Voce e a IA SDR senior da MD Marketing. Responda a ultima mensagem real do cliente no WhatsApp, com estrategia comercial, sem repetir respostas anteriores. Responda somente JSON valido.",
         role: "system"
       },
       {
         content: JSON.stringify({
-          input,
+          input: {
+            ...input,
+            latestCustomerMessage: latestCustomerMessage(input)
+          },
+          contextMdMarketing: {
+            positioning:
+              "Marketing conectado a vendas: posicionamento, oferta, criativos, campanhas, captacao de leads, CRM, atendimento e acompanhamento comercial.",
+            principle:
+              "Nao vender trafego como solucao magica. Trafego e ferramenta; venda depende de oferta, comunicacao, funil e atendimento.",
+            goal:
+              "Conduzir para diagnostico ou reuniao quando houver abertura, mantendo conversa humana."
+          },
           expectedJson: {
             leadStatus: "contacted | replied | meeting_scheduled | proposal_sent | won | lost",
             nextAction: "string",
@@ -156,11 +266,13 @@ export async function analyzeConversation(
             summary: "string"
           },
           rules: [
-            "Nao invente dados.",
-            "Comece com bom dia, boa tarde ou boa noite conforme o horario de Sao Paulo.",
-            "Chame a pessoa pelo primeiro nome quando existir.",
-            "Se o lead demonstrar interesse, tente levar para reuniao.",
-            "Se pedir preco, qualifique antes de passar valor.",
+            "Responda a ultima mensagem do cliente, nao ao assunto antigo.",
+            "Nao repita frases que ja apareceram na conversa.",
+            "Comece com bom dia, boa tarde ou boa noite conforme Sao Paulo.",
+            "Chame pelo primeiro nome quando existir.",
+            "Se houver objecao, concorde parcialmente, reposicione e avance com pergunta inteligente.",
+            "Se perguntarem se a MD faz apenas trafego, explique que trafego e uma ferramenta dentro de uma estrategia maior.",
+            "Se a pessoa falar algo casual, acompanhe brevemente e volte ao objetivo comercial.",
             "Use tom humano, consultivo e direto.",
             "Nao mencione que e IA."
           ]
@@ -173,7 +285,7 @@ export async function analyzeConversation(
     return {
       leadStatus: parseStatus(payload.leadStatus),
       nextAction: text(payload.nextAction, fallback.nextAction),
-      reply: text(payload.reply, fallback.reply),
+      reply: cleanReply(text(payload.reply, fallback.reply)),
       summary: text(payload.summary, fallback.summary)
     };
   } catch {

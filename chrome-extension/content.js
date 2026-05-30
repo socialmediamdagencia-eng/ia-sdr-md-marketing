@@ -13,20 +13,51 @@
     window.setTimeout(waitForBody, 250);
   }
 
-  function getConversationText() {
+  function looksLikeGeneratedReply(text) {
+    const lower = String(text || "").toLowerCase();
+    return [
+      "consigo te passar uma direcao",
+      "que bom falar com voce",
+      "a md ajuda empresas",
+      "pela forma como a md trabalha",
+      "hoje o maior desafio",
+      "trafego sozinho nao vende"
+    ].some((item) => lower.includes(item));
+  }
+
+  function cleanMessageText(text) {
+    return String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !/^\d{1,2}:\d{2}$/.test(line))
+      .filter((line) => !["hoje", "ontem"].includes(line.toLowerCase()))
+      .join(" ")
+      .trim();
+  }
+
+  function getConversationContext() {
     const bubbles = Array.from(document.querySelectorAll("[data-pre-plain-text]"));
     const messages = bubbles
       .map((bubble) => {
-        const text = (bubble.innerText || bubble.textContent || "").trim();
+        const text = cleanMessageText(bubble.innerText || bubble.textContent || "");
         const container = bubble.closest(".message-in, .message-out");
-        const direction = container?.classList.contains("message-out") ? "Atendente" : "Cliente";
+        const isOutgoing =
+          container?.classList.contains("message-out") ||
+          bubble.closest(".message-out") ||
+          looksLikeGeneratedReply(text);
+        const direction = isOutgoing ? "Atendente" : "Cliente";
 
-        return text ? `${direction}: ${text}` : "";
+        return text ? { direction, text } : null;
       })
       .filter(Boolean);
 
     if (messages.length) {
-      return messages.slice(-20).join("\n");
+      return {
+        conversation: messages.slice(-20).map((message) => `${message.direction}: ${message.text}`).join("\n"),
+        latestCustomerMessage:
+          [...messages].reverse().find((message) => message.direction === "Cliente")?.text || ""
+      };
     }
 
     const selectors = [
@@ -47,9 +78,14 @@
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
-      .filter((line) => !blocked.some((item) => line.toLowerCase().includes(item)));
+      .filter((line) => !blocked.some((item) => line.toLowerCase().includes(item)))
+      .filter((line) => !looksLikeGeneratedReply(line));
+    const useful = text.slice(-30);
 
-    return text.slice(-30).join("\n");
+    return {
+      conversation: useful.join("\n"),
+      latestCustomerMessage: useful.at(-1) || ""
+    };
   }
 
   function getChatName() {
@@ -140,6 +176,7 @@
     const conversation = document.querySelector("#md-copilot-conversation");
     const companyName = document.querySelector("#md-copilot-company");
     const objective = document.querySelector("#md-copilot-objective");
+    const latestCustomerMessage = conversation.dataset.latestCustomerMessage || "";
 
     button.disabled = true;
     setStatus("Analisando conversa...");
@@ -150,6 +187,7 @@
           companyName: companyName.value,
           contactName: firstName(companyName.value),
           conversation: conversation.value,
+          latestCustomerMessage,
           objective: objective.value
         }),
         headers: { "Content-Type": "application/json" },
@@ -174,9 +212,11 @@
   function refreshContext() {
     const conversation = document.querySelector("#md-copilot-conversation");
     const companyName = document.querySelector("#md-copilot-company");
+    const context = getConversationContext();
 
     companyName.value = getChatName();
-    conversation.value = getConversationText();
+    conversation.value = context.conversation;
+    conversation.dataset.latestCustomerMessage = context.latestCustomerMessage || "";
     setStatus("Conversa atualizada.");
   }
 

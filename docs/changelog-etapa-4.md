@@ -15,6 +15,7 @@
 - Copiloto ajustado para cumprimentar por horario, chamar pelo primeiro nome capturado no WhatsApp e evitar duplicacao da mensagem no campo.
 - Preenchimento da extensao reforcado para limpar o campo antes de inserir e bloquear duplo clique.
 - Leitura da extensao ajustada para priorizar bolhas reais do WhatsApp e ultima mensagem recebida do cliente.
+- Cérebro gratuito do Copiloto refeito para responder a ultima intenção real do cliente, contornar objeções sobre tráfego, responder pergunta sobre escopo da MD e acompanhar conversas casuais sem perder o rumo comercial.
 
 ## Fluxo operacional
 

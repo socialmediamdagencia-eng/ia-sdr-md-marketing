@@ -5,6 +5,7 @@ type SuggestBody = {
   companyName?: string;
   contactName?: string;
   conversation?: string;
+  latestCustomerMessage?: string;
   objective?: string;
 };
 
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     companyName: text(body.companyName, "Lead WhatsApp"),
     contactName: text(body.contactName, text(body.companyName, "Lead WhatsApp")),
     conversation,
+    latestCustomerMessage: text(body.latestCustomerMessage),
     objective: text(body.objective, "responder"),
     pains: [
       "Baixa previsibilidade comercial",
