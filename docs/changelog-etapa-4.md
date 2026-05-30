@@ -1,25 +1,18 @@
 # Changelog - Etapa 4
 
-## Entregue
+## Entrega
 
-- Tela de prospeccao funcional em `/prospeccao`.
-- Criacao de campanhas por segmento, cidade e quantidade.
-- Geracao V1 de empresas, contatos decisores, leads e resultados de prospeccao.
-- Score comercial inicial por lead.
-- Dores provaveis, oportunidades e oferta recomendada por lead.
-- Mensagem inicial de WhatsApp baseada no playbook da MD Marketing.
-- Tela `/mensagens` com cards completos por lead.
-- Botao `Abrir WhatsApp` com mensagem pronta.
-- Dashboard passa a refletir campanhas, prospectados, leads e atividades.
+- Criado o modulo Copiloto WhatsApp para analisar respostas dos clientes.
+- Criada geracao assistida de mensagens de resposta sem API paga obrigatoria.
+- Criada agenda de follow-up com tarefas geradas pela IA.
+- Criada acao para concluir follow-ups e registrar atividade.
+- Menu atualizado com Copiloto WhatsApp e Follow-up.
+- Fluxo gratis preservado: a IA escreve, classifica e organiza; o envio oficial automatico fica para integracao paga futura.
 
-## Observacao
+## Fluxo operacional
 
-Esta etapa ainda nao usa APIs externas de busca nem envio automatico de WhatsApp.
-O objetivo e validar o fluxo operacional completo dentro da Vercel e Supabase antes
-de conectar provedores pagos ou o futuro Copiloto WhatsApp.
-
-## Validacao
-
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
+1. A IA prospecta e cria leads.
+2. O usuario abre o WhatsApp com mensagem pronta.
+3. Quando o cliente responde, o usuario cola a conversa no Copiloto.
+4. A IA gera a proxima mensagem, atualiza status, cria historico e agenda follow-up.
+5. A pagina Follow-up mostra tudo que precisa ser feito.

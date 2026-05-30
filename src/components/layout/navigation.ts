@@ -37,6 +37,16 @@ export const navigationItems: NavigationItem[] = [
     label: "Mensagens"
   },
   {
+    href: "/copiloto",
+    icon: "W",
+    label: "Copiloto WhatsApp"
+  },
+  {
+    href: "/follow-up",
+    icon: "U",
+    label: "Follow-up"
+  },
+  {
     href: "/reunioes",
     icon: "R",
     label: "Reuniões"
