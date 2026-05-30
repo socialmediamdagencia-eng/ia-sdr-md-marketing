@@ -15,14 +15,17 @@ function stringArray(value: unknown): string[] {
 
 export type MessageLeadCard = {
   companyName: string;
+  contactId: string;
   contactName: string;
   id: string;
   message: string;
+  messageId: string;
   opportunities: string[];
   pains: string[];
   phone: string;
   recommendedOffer: string;
   score: number;
+  status: string;
   summary: string;
   temperature: string;
   whatsappUrl: string;
@@ -34,7 +37,7 @@ export async function getMessageLeadCards(): Promise<MessageLeadCard[]> {
 
   const { data: leads, error: leadsError } = await supabase
     .from("leads")
-    .select("id, company_id, primary_contact_id, temperature, created_at")
+    .select("id, company_id, primary_contact_id, status, temperature, created_at")
     .eq("organization_id", organization.id)
     .order("created_at", { ascending: false })
     .limit(30);
@@ -71,7 +74,7 @@ export async function getMessageLeadCards(): Promise<MessageLeadCard[]> {
     leadIds.length
       ? supabase
           .from("generated_messages")
-          .select("lead_id, message")
+          .select("id, lead_id, message")
           .eq("channel", "whatsapp")
           .in("lead_id", leadIds)
           .order("created_at", { ascending: false })
@@ -89,6 +92,7 @@ export async function getMessageLeadCards(): Promise<MessageLeadCard[]> {
   const scoreByLeadId = new Map<string, number>();
   const insightByLeadId = new Map<string, NonNullable<typeof insights.data>[number]>();
   const messageByLeadId = new Map<string, string>();
+  const messageIdByLeadId = new Map<string, string>();
 
   for (const score of scores.data ?? []) {
     const leadId = text(score.lead_id);
@@ -108,6 +112,7 @@ export async function getMessageLeadCards(): Promise<MessageLeadCard[]> {
     const leadId = text(message.lead_id);
     if (leadId && !messageByLeadId.has(leadId)) {
       messageByLeadId.set(leadId, text(message.message));
+      messageIdByLeadId.set(leadId, text(message.id));
     }
   }
 
@@ -121,14 +126,17 @@ export async function getMessageLeadCards(): Promise<MessageLeadCard[]> {
 
     return {
       companyName: text(company?.name) || "Empresa sem nome",
+      contactId: text(lead.primary_contact_id),
       contactName: text(contact?.name),
       id: leadId,
       message,
+      messageId: messageIdByLeadId.get(leadId) ?? "",
       opportunities: stringArray(insight?.opportunities),
       pains: stringArray(insight?.possible_pains),
       phone,
       recommendedOffer: text(insight?.recommended_offer),
       score: scoreByLeadId.get(leadId) ?? 0,
+      status: text(lead.status),
       summary: text(insight?.ai_summary),
       temperature: text(lead.temperature),
       whatsappUrl: phone && message ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : ""

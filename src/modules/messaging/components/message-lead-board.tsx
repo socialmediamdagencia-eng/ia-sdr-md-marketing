@@ -1,9 +1,22 @@
 import type { MessageLeadCard } from "@/modules/messaging/services/message-queries";
+import { WhatsAppActionButton } from "@/modules/messaging/components/whatsapp-action-button";
 
 const temperatureLabels: Record<string, string> = {
   cold: "Frio",
   warm: "Morno",
   hot: "Quente"
+};
+
+const statusLabels: Record<string, string> = {
+  archived: "Arquivado",
+  contacted: "Abordado",
+  lost: "Nao fechado",
+  meeting_scheduled: "Reuniao marcada",
+  new: "Novo",
+  proposal_sent: "Proposta enviada",
+  qualified: "Qualificado",
+  replied: "Respondeu",
+  won: "Fechado"
 };
 
 export function MessageLeadBoard({ leads }: { leads: MessageLeadCard[] }) {
@@ -27,20 +40,23 @@ export function MessageLeadBoard({ leads }: { leads: MessageLeadCard[] }) {
                   {lead.phone ? `- ${lead.phone}` : ""}
                 </p>
               </div>
-              {lead.whatsappUrl ? (
-                <a
-                  className="inline-flex w-fit items-center justify-center rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal/90"
-                  href={lead.whatsappUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Abrir WhatsApp
-                </a>
-              ) : (
-                <span className="w-fit rounded-md border border-line px-3 py-2 text-sm text-slate-500">
-                  Sem WhatsApp
+              <div className="flex flex-col items-start gap-2 lg:items-end">
+                <span className="w-fit rounded-md border border-line px-3 py-1 text-xs text-slate-600">
+                  {statusLabels[lead.status] ?? lead.status}
                 </span>
+                {lead.whatsappUrl ? (
+                  <WhatsAppActionButton
+                    contactId={lead.contactId}
+                    leadId={lead.id}
+                    messageId={lead.messageId}
+                    url={lead.whatsappUrl}
+                  />
+              ) : (
+                  <span className="w-fit rounded-md border border-line px-3 py-2 text-sm text-slate-500">
+                    Sem WhatsApp
+                  </span>
               )}
+              </div>
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
