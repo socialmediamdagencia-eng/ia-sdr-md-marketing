@@ -3,7 +3,7 @@ export const env = {
   supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
-  openRouterModel: process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini"
+  openRouterModel: process.env.OPENROUTER_MODEL ?? "openrouter/free"
 };
 
 export function assertPublicSupabaseEnv() {

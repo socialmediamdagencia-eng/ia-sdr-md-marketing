@@ -1,7 +1,7 @@
-import { CommercialSettingsForm } from "@/modules/settings/components/commercial-settings-form";
-import { getCommercialSettings } from "@/modules/settings/services/settings-queries";
 import { isAiConfigured } from "@/lib/ai/openrouter";
 import { env } from "@/lib/env";
+import { CommercialSettingsForm } from "@/modules/settings/components/commercial-settings-form";
+import { getCommercialSettings } from "@/modules/settings/services/settings-queries";
 
 export const dynamic = "force-dynamic";
 
@@ -26,21 +26,21 @@ export default async function SettingsPage() {
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Inteligência artificial
             </p>
-            <h2 className="mt-1 text-lg font-semibold text-ink">OpenRouter</h2>
+            <h2 className="mt-1 text-lg font-semibold text-ink">IA gratuita</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               {aiConfigured
-                ? `IA ativa usando o modelo ${env.openRouterModel}.`
-                : "IA ainda sem chave. O sistema continua funcionando com regras locais até configurar OPENROUTER_API_KEY na Vercel."}
+                ? `IA conectada usando o modelo gratuito ${env.openRouterModel}.`
+                : "Modo gratuito ativo: o sistema usa a IA local comercial da MD sem custo e sem chave externa."}
             </p>
           </div>
           <span
             className={`w-fit rounded-md border px-3 py-1 text-xs font-medium ${
               aiConfigured
                 ? "border-teal/20 bg-teal/10 text-teal"
-                : "border-amber/20 bg-amber/10 text-amber"
+                : "border-teal/20 bg-teal/10 text-teal"
             }`}
           >
-            {aiConfigured ? "IA conectada" : "Aguardando chave"}
+            {aiConfigured ? "OpenRouter grátis" : "IA local grátis"}
           </span>
         </div>
       </div>

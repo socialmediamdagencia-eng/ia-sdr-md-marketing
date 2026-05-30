@@ -110,7 +110,7 @@ function buildFallbackAnalysis(company: CompanyInput): CommercialAnalysis {
     contactabilityScore,
     digitalPresenceScore,
     fitScore,
-    generatedBy: isAiConfigured() ? "ia_sdr_fallback_v1" : "ia_sdr_rules_v1",
+    generatedBy: isAiConfigured() ? "ia_sdr_free_fallback_v1" : "ia_sdr_local_free_v1",
     message: `${greeting} Vi a ${company.name} em ${company.city} e percebi uma oportunidade de melhorar a captacao de clientes pelo digital.
 
 Sou da MD Marketing Empresarial. A gente ajuda empresas a transformar presenca digital em demanda e vendas, unindo conteudo, trafego e processo comercial.
