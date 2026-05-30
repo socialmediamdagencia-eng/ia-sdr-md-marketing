@@ -14,15 +14,42 @@
   }
 
   function getConversationText() {
+    const bubbles = Array.from(document.querySelectorAll("[data-pre-plain-text]"));
+    const messages = bubbles
+      .map((bubble) => {
+        const text = (bubble.innerText || bubble.textContent || "").trim();
+        const container = bubble.closest(".message-in, .message-out");
+        const direction = container?.classList.contains("message-out") ? "Atendente" : "Cliente";
+
+        return text ? `${direction}: ${text}` : "";
+      })
+      .filter(Boolean);
+
+    if (messages.length) {
+      return messages.slice(-20).join("\n");
+    }
+
     const selectors = [
       '[data-testid="conversation-panel-messages"]',
       '[role="application"]',
       "main"
     ];
     const root = selectors.map((selector) => document.querySelector(selector)).find(Boolean) || document.body;
-    const text = (root.innerText || "").split("\n").map((line) => line.trim()).filter(Boolean);
+    const blocked = [
+      "ai reply",
+      "ai rewrite",
+      "add quick chat",
+      "digite uma mensagem",
+      "use o whatsapp no seu celular",
+      "mensagens enviadas e recebidas"
+    ];
+    const text = (root.innerText || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !blocked.some((item) => line.toLowerCase().includes(item)));
 
-    return text.slice(-80).join("\n");
+    return text.slice(-30).join("\n");
   }
 
   function getChatName() {
@@ -76,7 +103,11 @@
     }
 
     composer.focus();
+    while (composer.firstChild) {
+      composer.removeChild(composer.firstChild);
+    }
     composer.textContent = "";
+    composer.innerHTML = "";
     composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
 
     const dataTransfer = new DataTransfer();

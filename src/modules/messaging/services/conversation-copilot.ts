@@ -36,22 +36,29 @@ function getOpening(input: ConversationCopilotInput) {
 
 function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutput {
   const lower = input.conversation.toLowerCase();
+  const lastClientMessage = input.conversation
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.toLowerCase().startsWith("cliente:"))
+    .at(-1)
+    ?.toLowerCase();
+  const decisionText = lastClientMessage || lower;
   const asksPrice = lower.includes("valor") || lower.includes("preco") || lower.includes("preço");
   const askedProposal = lower.includes("proposta") || lower.includes("manda") || lower.includes("envia");
   const wantsMarketing =
-    lower.includes("quero marketing") ||
-    lower.includes("marketing") ||
-    lower.includes("divulga") ||
-    lower.includes("anuncio") ||
-    lower.includes("anúncio") ||
-    lower.includes("trafego") ||
-    lower.includes("tráfego");
+    decisionText.includes("quero marketing") ||
+    decisionText.includes("marketing") ||
+    decisionText.includes("divulga") ||
+    decisionText.includes("anuncio") ||
+    decisionText.includes("anúncio") ||
+    decisionText.includes("trafego") ||
+    decisionText.includes("tráfego");
   const meetingSignal =
-    lower.includes("reuniao") ||
-    lower.includes("reunião") ||
-    lower.includes("agenda") ||
-    lower.includes("horario") ||
-    lower.includes("horário");
+    decisionText.includes("reuniao") ||
+    decisionText.includes("reunião") ||
+    decisionText.includes("agenda") ||
+    decisionText.includes("horario") ||
+    decisionText.includes("horário");
   const opening = getOpening(input);
 
   if (meetingSignal) {
@@ -64,16 +71,6 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (asksPrice || askedProposal) {
-    return {
-      leadStatus: "replied",
-      nextAction: "Qualificar antes de enviar proposta.",
-      reply:
-        `${opening} Consigo te passar uma direcao sim. Antes, para nao te mandar algo generico: hoje o maior desafio e gerar mais contatos qualificados, organizar o comercial ou melhorar o posicionamento digital?`,
-      summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
-    };
-  }
-
   if (wantsMarketing) {
     return {
       leadStatus: "replied",
@@ -81,6 +78,16 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
       reply:
         `${opening} Que bom falar com voce. A MD ajuda empresas a transformar marketing em oportunidade comercial, nao so em postagem. Hoje voce quer mais clientes pelo digital, melhorar o posicionamento da marca ou organizar melhor as vendas?`,
       summary: "Lead demonstrou interesse direto em marketing. Proximo passo: qualificar objetivo comercial."
+    };
+  }
+
+  if (asksPrice || askedProposal) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Qualificar antes de enviar proposta.",
+      reply:
+        `${opening} Consigo te passar uma direcao sim. Antes, para nao te mandar algo generico: hoje o maior desafio e gerar mais contatos qualificados, organizar o comercial ou melhorar o posicionamento digital?`,
+      summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
     };
   }
 

@@ -14,6 +14,7 @@
 - Criada API `/api/copilot/suggest` para a extensao solicitar sugestoes da IA SDR.
 - Copiloto ajustado para cumprimentar por horario, chamar pelo primeiro nome capturado no WhatsApp e evitar duplicacao da mensagem no campo.
 - Preenchimento da extensao reforcado para limpar o campo antes de inserir e bloquear duplo clique.
+- Leitura da extensao ajustada para priorizar bolhas reais do WhatsApp e ultima mensagem recebida do cliente.
 
 ## Fluxo operacional
 
