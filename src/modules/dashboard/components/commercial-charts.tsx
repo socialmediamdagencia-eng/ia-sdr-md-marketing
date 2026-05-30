@@ -21,6 +21,14 @@ type CommercialChartsProps = {
   campaigns: number;
   companies: number;
   foundProspects: number;
+  latestCampaign: {
+    city: string;
+    foundQuantity: number;
+    name: string;
+    requestedQuantity: number;
+    segment: string;
+    status: string;
+  } | null;
   leads: number;
   requestedProspects: number;
   statusCounts: LeadStatusCounts;
@@ -48,6 +56,7 @@ export function CommercialCharts({
   campaigns,
   companies,
   foundProspects,
+  latestCampaign,
   leads,
   requestedProspects,
   statusCounts,
@@ -72,6 +81,9 @@ export function CommercialCharts({
   const lost = statusCounts.lost + statusCounts.archived;
   const open = Math.max(0, leads - won - lost);
   const maxFunnel = Math.max(prospected, leads, contacted, inConversation, meetings, proposals, won, 1);
+  const latestCoverage = latestCampaign
+    ? displayPercent(latestCampaign.foundQuantity, latestCampaign.requestedQuantity)
+    : "0%";
 
   const funnel = [
     { label: "Prospectados", value: prospected, tone: "bg-[#4D6BFF]" },
@@ -155,6 +167,52 @@ export function CommercialCharts({
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-5 rounded-md border border-white/10 bg-[#10182B] p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7F97FF]">
+              Ultima campanha
+            </p>
+            <h3 className="mt-2 text-xl font-semibold text-white">
+              {latestCampaign?.name ?? "Nenhuma campanha registrada ainda"}
+            </h3>
+            <p className="mt-1 text-sm text-[#C8D2FF]">
+              {latestCampaign
+                ? `${latestCampaign.segment} em ${latestCampaign.city}`
+                : "Quando uma prospeccao rodar, ela aparece aqui separada do acumulado geral."}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
+            <div className="rounded-md border border-white/10 bg-white/[0.06] p-3">
+              <p className="text-[11px] uppercase tracking-wide text-[#94A3B8]">Solicitados</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {latestCampaign?.requestedQuantity ?? 0}
+              </p>
+            </div>
+            <div className="rounded-md border border-white/10 bg-white/[0.06] p-3">
+              <p className="text-[11px] uppercase tracking-wide text-[#94A3B8]">Encontrados</p>
+              <p className="mt-1 text-2xl font-semibold text-[#8EA0FF]">
+                {latestCampaign?.foundQuantity ?? 0}
+              </p>
+            </div>
+            <div className="rounded-md border border-white/10 bg-white/[0.06] p-3">
+              <p className="text-[11px] uppercase tracking-wide text-[#94A3B8]">Resultado</p>
+              <p className="mt-1 text-2xl font-semibold text-[#FFFFFF]">{latestCoverage}</p>
+            </div>
+          </div>
+        </div>
+        {latestCampaign ? (
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-[#8EA0FF]"
+              style={{
+                width: `${percent(latestCampaign.foundQuantity, latestCampaign.requestedQuantity)}%`
+              }}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">

@@ -57,6 +57,7 @@ export async function DashboardOverview() {
         campaigns={crmCounts.campaigns}
         companies={crmCounts.companies}
         foundProspects={crmCounts.foundProspects}
+        latestCampaign={crmCounts.latestCampaign}
         leads={crmCounts.leads}
         requestedProspects={crmCounts.requestedProspects}
         statusCounts={crmCounts.statusCounts}

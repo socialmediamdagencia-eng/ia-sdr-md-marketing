@@ -101,8 +101,11 @@ export async function getCrmCounts() {
       .eq("organization_id", organization.id),
     supabase
       .from("prospecting_campaigns")
-      .select("id, requested_quantity, found_quantity", { count: "exact" })
+      .select("id, name, segment, city, requested_quantity, found_quantity, status, created_at", {
+        count: "exact"
+      })
       .eq("organization_id", organization.id)
+      .order("created_at", { ascending: false })
   ]);
 
   const statusCounts = {
@@ -144,6 +147,16 @@ export async function getCrmCounts() {
     (total, campaign) => total + numberValue(campaign.found_quantity),
     0
   );
+  const latestCampaign = campaigns.data?.[0]
+    ? {
+        city: text(campaigns.data[0].city),
+        foundQuantity: numberValue(campaigns.data[0].found_quantity),
+        name: text(campaigns.data[0].name),
+        requestedQuantity: numberValue(campaigns.data[0].requested_quantity),
+        segment: text(campaigns.data[0].segment),
+        status: text(campaigns.data[0].status)
+      }
+    : null;
 
   return {
     companies: companies.count ?? 0,
@@ -152,6 +165,7 @@ export async function getCrmCounts() {
     campaigns: campaigns.count ?? 0,
     requestedProspects,
     foundProspects,
+    latestCampaign,
     statusCounts,
     temperatureCounts
   };
