@@ -1,49 +1,54 @@
 type NavigationItem = {
-  label: string;
+  disabled?: boolean;
   href: string;
   icon: string;
-  disabled?: boolean;
+  label: string;
 };
 
 export const navigationItems: NavigationItem[] = [
   {
-    label: "Dashboard",
     href: "/dashboard",
-    icon: "D"
+    icon: "D",
+    label: "Dashboard"
   },
   {
-    label: "Prospecção",
     href: "/prospeccao",
-    icon: "P"
+    icon: "P",
+    label: "Prospecção"
   },
   {
-    label: "Leads",
     href: "/leads",
-    icon: "L"
+    icon: "L",
+    label: "Leads"
   },
   {
-    label: "Empresas",
     href: "/empresas",
-    icon: "E"
+    icon: "E",
+    label: "Empresas"
   },
   {
-    label: "Pipeline",
     href: "/pipeline",
-    icon: "F"
+    icon: "F",
+    label: "Pipeline"
   },
   {
-    label: "Mensagens",
     href: "/mensagens",
-    icon: "M"
+    icon: "M",
+    label: "Mensagens"
   },
   {
-    label: "Reuniões",
     href: "/reunioes",
-    icon: "R"
+    icon: "R",
+    label: "Reuniões"
   },
   {
-    label: "Configurações",
+    href: "/atividades",
+    icon: "A",
+    label: "Atividades"
+  },
+  {
     href: "/configuracoes",
-    icon: "C"
+    icon: "C",
+    label: "Configurações"
   }
 ] as const;
