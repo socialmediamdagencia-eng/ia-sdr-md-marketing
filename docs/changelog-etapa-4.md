@@ -10,6 +10,8 @@
 - Fluxo gratis preservado: a IA escreve, classifica e organiza; o envio oficial automatico fica para integracao paga futura.
 - Copiloto agora mostra historico comercial, botao de copiar resposta, abertura do WhatsApp com texto pronto e agendamento de reuniao na mesma tela.
 - Reunioes agora geram link direto para adicionar no Google Calendar sem integracao paga.
+- Criada extensao Chrome gratuita do Copiloto WhatsApp para ler conversa visivel no WhatsApp Web, gerar resposta e preencher o campo de mensagem.
+- Criada API `/api/copilot/suggest` para a extensao solicitar sugestoes da IA SDR.
 
 ## Fluxo operacional
 
