@@ -111,15 +111,19 @@ function getIntentFlags(input: ConversationCopilotInput) {
     asksProposal: hasAny(decisionText, ["proposta", "manda", "envia"]),
     casualCoffee: hasAny(decisionText, ["cafe", "café"]),
     meetingSignal: hasAny(decisionText, ["reuniao", "reunião", "agenda", "horario", "horário"]),
-    trafficObjection: hasAny(decisionText, [
-      "trafego nao vende",
-      "tráfego nao vende",
-      "nao acho que trafego vende",
-      "nao confio em gestor de trafego",
-      "gestor de trafego",
-      "me convença",
-      "me convensa"
-    ]),
+    trafficObjection:
+      (hasAny(decisionText, ["trafego", "tráfego"]) &&
+        hasAny(decisionText, ["vende", "vender", "confio", "confiar", "conven"])) ||
+      hasAny(decisionText, [
+        "trafego nao vende",
+        "tráfego nao vende",
+        "nao acho que trafego vende",
+        "nao confio em gestor de trafego",
+        "gestor de trafego",
+        "me convença",
+        "me convensa",
+        "me convence"
+      ]),
     wantsMarketing: hasAny(decisionText, [
       "quero marketing",
       "marketing",
