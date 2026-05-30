@@ -2,6 +2,7 @@ import { generateChatCompletion, isAiConfigured } from "@/lib/ai/openrouter";
 
 export type ConversationCopilotInput = {
   companyName: string;
+  contactName?: string;
   conversation: string;
   objective: string;
   pains: string[];
@@ -15,23 +16,50 @@ export type ConversationCopilotOutput = {
   summary: string;
 };
 
+function getOpening(input: ConversationCopilotInput) {
+  const contactName = (input.contactName || input.companyName).split(/[|\-–—]/)[0].trim();
+  const firstName =
+    contactName && !contactName.toLowerCase().includes("lead")
+      ? contactName.split(/\s+/)[0]
+      : "";
+  const hour = Number(
+    new Date().toLocaleString("pt-BR", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/Sao_Paulo"
+    })
+  );
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+
+  return firstName ? `${greeting}, ${firstName}!` : `${greeting}!`;
+}
+
 function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutput {
   const lower = input.conversation.toLowerCase();
   const asksPrice = lower.includes("valor") || lower.includes("preco") || lower.includes("preço");
   const askedProposal = lower.includes("proposta") || lower.includes("manda") || lower.includes("envia");
+  const wantsMarketing =
+    lower.includes("quero marketing") ||
+    lower.includes("marketing") ||
+    lower.includes("divulga") ||
+    lower.includes("anuncio") ||
+    lower.includes("anúncio") ||
+    lower.includes("trafego") ||
+    lower.includes("tráfego");
   const meetingSignal =
     lower.includes("reuniao") ||
     lower.includes("reunião") ||
     lower.includes("agenda") ||
     lower.includes("horario") ||
     lower.includes("horário");
+  const opening = getOpening(input);
 
   if (meetingSignal) {
     return {
       leadStatus: "meeting_scheduled",
       nextAction: "Sugerir dois horarios e marcar reuniao no painel.",
       reply:
-        "Perfeito. Para eu te mostrar algo bem objetivo, posso te chamar para uma conversa rapida de 20 minutos. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?",
+        `${opening} Perfeito. Para eu te mostrar algo bem objetivo, posso te chamar para uma conversa rapida de 20 minutos. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?`,
       summary: "Lead demonstrou abertura para agenda. Prioridade: marcar reuniao."
     };
   }
@@ -41,8 +69,18 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
       leadStatus: "replied",
       nextAction: "Qualificar antes de enviar proposta.",
       reply:
-        "Consigo te passar uma direcao sim. Antes, para nao te mandar algo generico: hoje o maior desafio e gerar mais contatos qualificados, organizar o comercial ou melhorar o posicionamento digital?",
+        `${opening} Consigo te passar uma direcao sim. Antes, para nao te mandar algo generico: hoje o maior desafio e gerar mais contatos qualificados, organizar o comercial ou melhorar o posicionamento digital?`,
       summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
+    };
+  }
+
+  if (wantsMarketing) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Entender objetivo comercial e tentar marcar diagnostico rapido.",
+      reply:
+        `${opening} Que bom falar com voce. A MD ajuda empresas a transformar marketing em oportunidade comercial, nao so em postagem. Hoje voce quer mais clientes pelo digital, melhorar o posicionamento da marca ou organizar melhor as vendas?`,
+      summary: "Lead demonstrou interesse direto em marketing. Proximo passo: qualificar objetivo comercial."
     };
   }
 
@@ -50,7 +88,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     leadStatus: "replied",
     nextAction: "Continuar qualificacao e tentar levar para reuniao.",
     reply:
-      "Entendi. Pela forma como a MD trabalha, o primeiro passo e enxergar onde a empresa esta perdendo oportunidade no digital e no comercial. Posso te mostrar uma leitura rapida da sua operacao e apontar 2 ou 3 melhorias praticas?",
+      `${opening} Entendi. Pela forma como a MD trabalha, o primeiro passo e enxergar onde a empresa esta perdendo oportunidade no digital e no comercial. Posso te mostrar uma leitura rapida da sua operacao e apontar 2 ou 3 melhorias praticas?`,
     summary: "Lead respondeu. Proximo passo: conduzir para diagnostico curto."
   };
 }
@@ -112,6 +150,8 @@ export async function analyzeConversation(
           },
           rules: [
             "Nao invente dados.",
+            "Comece com bom dia, boa tarde ou boa noite conforme o horario de Sao Paulo.",
+            "Chame a pessoa pelo primeiro nome quando existir.",
             "Se o lead demonstrar interesse, tente levar para reuniao.",
             "Se pedir preco, qualifique antes de passar valor.",
             "Use tom humano, consultivo e direto.",

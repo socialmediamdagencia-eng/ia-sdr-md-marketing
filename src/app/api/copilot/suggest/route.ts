@@ -3,6 +3,7 @@ import { analyzeConversation } from "@/modules/messaging/services/conversation-c
 
 type SuggestBody = {
   companyName?: string;
+  contactName?: string;
   conversation?: string;
   objective?: string;
 };
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
 
   const result = await analyzeConversation({
     companyName: text(body.companyName, "Lead WhatsApp"),
+    contactName: text(body.contactName, text(body.companyName, "Lead WhatsApp")),
     conversation,
     objective: text(body.objective, "responder"),
     pains: [

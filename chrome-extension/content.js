@@ -34,6 +34,15 @@
     return element?.getAttribute("title") || element?.textContent?.trim() || "Lead WhatsApp";
   }
 
+  function firstName(value) {
+    const clean = String(value || "")
+      .replace(/\([^)]*\)/g, "")
+      .split(/[|\-–—]/)[0]
+      .trim();
+
+    return clean.split(/\s+/).find(Boolean) || "";
+  }
+
   function findComposer() {
     const fields = Array.from(document.querySelectorAll('[contenteditable="true"]'));
     return fields.reverse().find((field) => {
@@ -52,7 +61,21 @@
     }
 
     composer.focus();
+    const currentText = (composer.innerText || composer.textContent || "").trim();
+    const nextText = String(message || "").trim();
+
+    if (!nextText) {
+      setStatus("Gere uma resposta antes de preencher.");
+      return;
+    }
+
+    if (currentText === nextText || currentText.includes(nextText)) {
+      setStatus("Essa resposta ja esta no campo. Revise e aperte enviar.");
+      return;
+    }
+
     document.execCommand("selectAll", false);
+    document.execCommand("delete", false);
     document.execCommand("insertText", false, message);
     composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: message }));
     setStatus("Resposta preenchida. Revise e aperte enviar.");
@@ -79,6 +102,7 @@
       const response = await fetch(API_URL, {
         body: JSON.stringify({
           companyName: companyName.value,
+          contactName: firstName(companyName.value),
           conversation: conversation.value,
           objective: objective.value
         }),
