@@ -98,6 +98,54 @@ function hasAny(text: string, words: string[]) {
   return words.some((word) => text.includes(normalize(word)));
 }
 
+function getIntentFlags(input: ConversationCopilotInput) {
+  const latest = latestCustomerMessage(input);
+  const decisionText = normalize(latest || input.conversation);
+
+  return {
+    asksOnlyTraffic:
+      hasAny(decisionText, ["apenas trafego", "so trafego", "só trafego", "só tráfego", "apenas tráfego"]) ||
+      (hasAny(decisionText, ["voces tem", "vocês tem", "fazem", "trabalham"]) &&
+        hasAny(decisionText, ["trafego", "tráfego"])),
+    asksPrice: hasAny(decisionText, ["valor", "preco", "preço", "quanto custa", "investimento"]),
+    asksProposal: hasAny(decisionText, ["proposta", "manda", "envia"]),
+    casualCoffee: hasAny(decisionText, ["cafe", "café"]),
+    meetingSignal: hasAny(decisionText, ["reuniao", "reunião", "agenda", "horario", "horário"]),
+    trafficObjection: hasAny(decisionText, [
+      "trafego nao vende",
+      "tráfego nao vende",
+      "nao acho que trafego vende",
+      "nao confio em gestor de trafego",
+      "gestor de trafego",
+      "me convença",
+      "me convensa"
+    ]),
+    wantsMarketing: hasAny(decisionText, [
+      "quero marketing",
+      "marketing",
+      "divulga",
+      "anuncio",
+      "anúncio",
+      "trafego",
+      "tráfego"
+    ])
+  };
+}
+
+function shouldUseLocalSalesBrain(input: ConversationCopilotInput) {
+  const flags = getIntentFlags(input);
+
+  return (
+    flags.meetingSignal ||
+    flags.trafficObjection ||
+    flags.asksOnlyTraffic ||
+    flags.casualCoffee ||
+    flags.asksPrice ||
+    flags.asksProposal ||
+    flags.wantsMarketing
+  );
+}
+
 function cleanReply(reply: string) {
   const paragraphs = reply
     .split(/\n+/)
@@ -108,22 +156,10 @@ function cleanReply(reply: string) {
 }
 
 function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutput {
-  const latest = latestCustomerMessage(input);
-  const decisionText = normalize(latest || input.conversation);
+  const flags = getIntentFlags(input);
   const opening = getOpening(input);
-  const asksOnlyTraffic =
-    hasAny(decisionText, ["apenas trafego", "so trafego", "só trafego", "só tráfego", "apenas tráfego"]) ||
-    (hasAny(decisionText, ["voces tem", "vocês tem", "fazem", "trabalham"]) &&
-      hasAny(decisionText, ["trafego", "tráfego"]));
-  const trafficObjection =
-    hasAny(decisionText, ["trafego nao vende", "tráfego nao vende", "nao acho que trafego vende", "nao confio em gestor de trafego", "gestor de trafego", "me convença", "me convensa"]);
-  const asksPrice = hasAny(decisionText, ["valor", "preco", "preço", "quanto custa", "investimento"]);
-  const asksProposal = hasAny(decisionText, ["proposta", "manda", "envia"]);
-  const meetingSignal = hasAny(decisionText, ["reuniao", "reunião", "agenda", "horario", "horário"]);
-  const wantsMarketing = hasAny(decisionText, ["quero marketing", "marketing", "divulga", "anuncio", "anúncio", "trafego", "tráfego"]);
-  const casualCoffee = hasAny(decisionText, ["cafe", "café"]);
 
-  if (meetingSignal) {
+  if (flags.meetingSignal) {
     return {
       leadStatus: "meeting_scheduled",
       nextAction: "Sugerir dois horarios e marcar reuniao no painel.",
@@ -134,7 +170,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (asksOnlyTraffic) {
+  if (flags.asksOnlyTraffic) {
     return {
       leadStatus: "replied",
       nextAction: "Explicar escopo da MD e descobrir necessidade principal.",
@@ -145,7 +181,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (trafficObjection) {
+  if (flags.trafficObjection) {
     return {
       leadStatus: "replied",
       nextAction: "Contornar objecao sobre trafego e propor diagnostico.",
@@ -156,7 +192,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (casualCoffee) {
+  if (flags.casualCoffee) {
     return {
       leadStatus: "replied",
       nextAction: "Responder casualmente e voltar ao objetivo comercial.",
@@ -167,7 +203,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (asksPrice || asksProposal) {
+  if (flags.asksPrice || flags.asksProposal) {
     return {
       leadStatus: "replied",
       nextAction: "Qualificar antes de enviar proposta.",
@@ -178,7 +214,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
     };
   }
 
-  if (wantsMarketing) {
+  if (flags.wantsMarketing) {
     return {
       leadStatus: "replied",
       nextAction: "Entender objetivo comercial e tentar marcar diagnostico rapido.",
@@ -234,7 +270,7 @@ export async function analyzeConversation(
 ): Promise<ConversationCopilotOutput> {
   const fallback = fallbackReply(input);
 
-  if (!isAiConfigured()) {
+  if (!isAiConfigured() || shouldUseLocalSalesBrain(input)) {
     return fallback;
   }
 
