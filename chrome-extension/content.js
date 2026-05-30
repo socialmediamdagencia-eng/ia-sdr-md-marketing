@@ -2,6 +2,7 @@
   const API_URL = "https://ia-sdr-md-marketing.vercel.app/api/copilot/suggest";
   const PANEL_ID = "md-copilot-panel";
   const LAUNCHER_ID = "md-copilot-launcher";
+  let lastInsertedMessage = "";
 
   function waitForBody() {
     if (document.body) {
@@ -52,7 +53,7 @@
     }) || fields.at(-1);
   }
 
-  function insertMessage(message) {
+  async function insertMessage(message) {
     const composer = findComposer();
 
     if (!composer) {
@@ -60,8 +61,6 @@
       return;
     }
 
-    composer.focus();
-    const currentText = (composer.innerText || composer.textContent || "").trim();
     const nextText = String(message || "").trim();
 
     if (!nextText) {
@@ -69,15 +68,31 @@
       return;
     }
 
-    if (currentText === nextText || currentText.includes(nextText)) {
+    const currentText = (composer.innerText || composer.textContent || "").trim();
+
+    if (currentText === nextText || currentText.includes(nextText) || lastInsertedMessage === nextText) {
       setStatus("Essa resposta ja esta no campo. Revise e aperte enviar.");
       return;
     }
 
-    document.execCommand("selectAll", false);
-    document.execCommand("delete", false);
-    document.execCommand("insertText", false, message);
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: message }));
+    composer.focus();
+    composer.textContent = "";
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData("text/plain", nextText);
+    const pasteEvent = new ClipboardEvent("paste", {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    });
+    composer.dispatchEvent(pasteEvent);
+
+    if (!(composer.innerText || composer.textContent || "").includes(nextText)) {
+      document.execCommand("insertText", false, nextText);
+    }
+
+    lastInsertedMessage = nextText;
     setStatus("Resposta preenchida. Revise e aperte enviar.");
   }
 
@@ -204,9 +219,14 @@
       await navigator.clipboard.writeText(reply);
       setStatus("Resposta copiada.");
     });
-    panel.querySelector("#md-copilot-insert").addEventListener("click", () => {
+    panel.querySelector("#md-copilot-insert").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
       const reply = panel.querySelector("#md-copilot-result").dataset.reply || "";
-      insertMessage(reply);
+      await insertMessage(reply);
+      window.setTimeout(() => {
+        button.disabled = false;
+      }, 1200);
     });
   }
 

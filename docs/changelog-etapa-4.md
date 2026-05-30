@@ -13,6 +13,7 @@
 - Criada extensao Chrome gratuita do Copiloto WhatsApp para ler conversa visivel no WhatsApp Web, gerar resposta e preencher o campo de mensagem.
 - Criada API `/api/copilot/suggest` para a extensao solicitar sugestoes da IA SDR.
 - Copiloto ajustado para cumprimentar por horario, chamar pelo primeiro nome capturado no WhatsApp e evitar duplicacao da mensagem no campo.
+- Preenchimento da extensao reforcado para limpar o campo antes de inserir e bloquear duplo clique.
 
 ## Fluxo operacional
 
