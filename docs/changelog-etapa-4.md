@@ -16,6 +16,7 @@
 - Preenchimento da extensao reforcado para limpar o campo antes de inserir e bloquear duplo clique.
 - Leitura da extensao ajustada para priorizar bolhas reais do WhatsApp e ultima mensagem recebida do cliente.
 - Cérebro gratuito do Copiloto refeito para responder a ultima intenção real do cliente, contornar objeções sobre tráfego, responder pergunta sobre escopo da MD e acompanhar conversas casuais sem perder o rumo comercial.
+- Extensao corrigida para inserir a resposta uma unica vez e cérebro ajustado para responder perguntas de continuidade como "o que mais?" usando o contexto anterior.
 
 ## Fluxo operacional
 

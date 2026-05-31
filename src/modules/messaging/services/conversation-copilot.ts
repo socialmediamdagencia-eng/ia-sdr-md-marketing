@@ -101,8 +101,27 @@ function hasAny(text: string, words: string[]) {
 function getIntentFlags(input: ConversationCopilotInput) {
   const latest = latestCustomerMessage(input);
   const decisionText = normalize(latest || input.conversation);
+  const fullText = normalize(input.conversation);
+  const asksWhatElse = hasAny(decisionText, [
+    "o que mais",
+    "e o que mais",
+    "oque mais",
+    "alem disso",
+    "além disso",
+    "tem mais o que"
+  ]);
 
   return {
+    asksServices:
+      asksWhatElse ||
+      hasAny(decisionText, [
+        "quais servicos",
+        "quais serviços",
+        "o que voces fazem",
+        "o que vocês fazem",
+        "tem social media",
+        "social media"
+      ]),
     asksOnlyTraffic:
       hasAny(decisionText, ["apenas trafego", "so trafego", "só trafego", "só tráfego", "apenas tráfego"]) ||
       (hasAny(decisionText, ["voces tem", "vocês tem", "fazem", "trabalham"]) &&
@@ -132,7 +151,8 @@ function getIntentFlags(input: ConversationCopilotInput) {
       "anúncio",
       "trafego",
       "tráfego"
-    ])
+    ]),
+    hasServiceContext: hasAny(fullText, ["social media", "trafego", "tráfego", "marketing", "anuncio", "anúncio"])
   };
 }
 
@@ -142,6 +162,7 @@ function shouldUseLocalSalesBrain(input: ConversationCopilotInput) {
   return (
     flags.meetingSignal ||
     flags.trafficObjection ||
+    flags.asksServices ||
     flags.asksOnlyTraffic ||
     flags.casualCoffee ||
     flags.asksPrice ||
@@ -171,6 +192,17 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
         `${opening} Perfeito. Para ser objetivo, posso te mostrar em uma conversa rapida onde a MD consegue ajudar e quais caminhos fariam sentido para o seu momento. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?`
       ),
       summary: "Lead demonstrou abertura para agenda. Prioridade: marcar reuniao."
+    };
+  }
+
+  if (flags.asksServices || (flags.hasServiceContext && flags.asksOnlyTraffic)) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Explicar servicos da MD e entender prioridade do cliente.",
+      reply: cleanReply(
+        `${opening} Temos sim. Alem de trafego, a MD pode atuar com social media estrategico, posicionamento da marca, criativos, campanhas, captacao de leads, organizacao comercial e acompanhamento dos resultados. O ideal nao e escolher servico solto, e entender o que precisa vender mais primeiro. Hoje voce sente mais falta de aparecer melhor, gerar leads ou converter quem ja chama?`
+      ),
+      summary: "Lead perguntou o que mais a MD faz. Resposta deve abrir o escopo e qualificar prioridade."
     };
   }
 

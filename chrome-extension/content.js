@@ -3,6 +3,7 @@
   const PANEL_ID = "md-copilot-panel";
   const LAUNCHER_ID = "md-copilot-launcher";
   let lastInsertedMessage = "";
+  let isInserting = false;
 
   function waitForBody() {
     if (document.body) {
@@ -117,6 +118,11 @@
   }
 
   async function insertMessage(message) {
+    if (isInserting) {
+      setStatus("Ja estou preenchendo a resposta.");
+      return;
+    }
+
     const composer = findComposer();
 
     if (!composer) {
@@ -138,6 +144,7 @@
       return;
     }
 
+    isInserting = true;
     composer.focus();
     while (composer.firstChild) {
       composer.removeChild(composer.firstChild);
@@ -146,21 +153,13 @@
     composer.innerHTML = "";
     composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
 
-    const dataTransfer = new DataTransfer();
-    dataTransfer.setData("text/plain", nextText);
-    const pasteEvent = new ClipboardEvent("paste", {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: dataTransfer
-    });
-    composer.dispatchEvent(pasteEvent);
-
-    if (!(composer.innerText || composer.textContent || "").includes(nextText)) {
-      document.execCommand("insertText", false, nextText);
-    }
-
+    document.execCommand("insertText", false, nextText);
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: nextText }));
     lastInsertedMessage = nextText;
     setStatus("Resposta preenchida. Revise e aperte enviar.");
+    window.setTimeout(() => {
+      isInserting = false;
+    }, 1200);
   }
 
   function setStatus(message) {
