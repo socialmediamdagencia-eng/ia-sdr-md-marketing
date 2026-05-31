@@ -138,6 +138,22 @@ function getIntentFlags(input: ConversationCopilotInput) {
     asksProposal: hasAny(decisionText, ["proposta", "manda", "envia"]),
     casualCoffee: hasAny(decisionText, ["cafe", "café"]),
     meetingSignal: hasAny(decisionText, ["reuniao", "reunião", "agenda", "horario", "horário"]),
+    conversionProblem: hasAny(decisionText, [
+      "converter",
+      "converte",
+      "conversao",
+      "conversão",
+      "curioso",
+      "curiosos",
+      "so curiosos",
+      "só curiosos",
+      "lead ruim",
+      "leads ruins",
+      "muitos leads",
+      "lead desqualificado",
+      "leads desqualificados"
+    ]),
+    doubts: hasAny(decisionText, ["duvida", "dúvida", "duvidas", "dúvidas", "como funciona", "nao entendi", "não entendi"]),
     trafficObjection:
       (hasAny(decisionText, ["trafego", "tráfego"]) &&
         hasAny(decisionText, ["vende", "vender", "confio", "confiar", "conven"])) ||
@@ -184,6 +200,8 @@ function shouldUseLocalSalesBrain(input: ConversationCopilotInput) {
     flags.asksServices ||
     flags.asksOnlyTraffic ||
     flags.casualCoffee ||
+    flags.conversionProblem ||
+    flags.doubts ||
     flags.asksPrice ||
     flags.asksProposal ||
     flags.salesIntent ||
@@ -234,6 +252,28 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
         `${opening} Perfeito. Para ser objetivo, posso te mostrar em uma conversa rapida onde a MD consegue ajudar e quais caminhos fariam sentido para o seu momento. Hoje no fim da tarde ou amanha pela manha funciona melhor para voce?`
       ),
       summary: "Lead demonstrou abertura para agenda. Prioridade: marcar reuniao."
+    };
+  }
+
+  if (flags.conversionProblem) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Diagnosticar qualidade dos leads e gargalo de conversao.",
+      reply: cleanReply(
+        `${opening} isso normalmente nao e so problema de volume. Quando chegam muitos curiosos, eu olharia tres pontos: promessa da campanha, filtro do publico e como o lead e conduzido no atendimento. A MD ajusta a captacao para atrair gente com mais intencao e tambem organiza o processo para separar curioso de oportunidade real. Hoje esses leads chegam por anuncio, Instagram ou indicacao?`
+      ),
+      summary: "Lead disse que tem muitos leads, mas curiosos. Resposta deve tratar conversao e qualificacao."
+    };
+  }
+
+  if (flags.doubts) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Explicar processo de forma simples e conduzir para diagnostico.",
+      reply: cleanReply(
+        `${opening} funciona assim: primeiro a gente entende o que voce vende, quem e o cliente ideal e onde a venda trava. Depois montamos o caminho: posicionamento, criativos, campanhas, captacao e acompanhamento dos contatos. O objetivo nao e fazer marketing bonito, e criar um processo que gere oportunidade comercial.`
+      ),
+      summary: "Lead demonstrou duvida sobre funcionamento. Resposta deve explicar o processo de forma clara."
     };
   }
 

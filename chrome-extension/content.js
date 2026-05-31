@@ -168,34 +168,16 @@
 
   async function fillComposerOnce(composer, nextText) {
     clearComposer(composer);
-    await navigator.clipboard.writeText(nextText).catch(() => undefined);
-
-    try {
-      const clipboard = new DataTransfer();
-      clipboard.setData("text/plain", nextText);
-      composer.dispatchEvent(
-        new ClipboardEvent("paste", {
-          bubbles: true,
-          cancelable: true,
-          clipboardData: clipboard
-        })
-      );
-      await sleep(180);
-    } catch {
-      // Older Chromium builds can block synthetic ClipboardEvent data.
-    }
-
-    if (!normalizeText(composer.innerText || composer.textContent || "")) {
-      document.execCommand("insertText", false, nextText);
-      composer.dispatchEvent(new Event("input", { bubbles: true }));
-      await sleep(80);
-    }
+    document.execCommand("insertText", false, nextText);
+    composer.dispatchEvent(new Event("input", { bubbles: true }));
+    await sleep(80);
 
     const finalText = dedupeReply(composer.innerText || composer.textContent || "");
+    const duplicatedText = `${normalizeText(nextText)} ${normalizeText(nextText)}`;
 
-    if (normalizeText(finalText) !== normalizeText(nextText)) {
+    if (normalizeText(finalText) === duplicatedText || normalizeText(finalText) !== normalizeText(nextText)) {
       clearComposer(composer);
-      document.execCommand("insertText", false, nextText);
+      composer.appendChild(document.createTextNode(nextText));
       composer.dispatchEvent(new Event("input", { bubbles: true }));
     }
   }
@@ -275,6 +257,7 @@
       const cleanReply = dedupeReply(payload.reply || "");
       result.textContent = cleanReply;
       result.dataset.reply = cleanReply;
+      lastInsertedMessage = "";
       setStatus(payload.nextAction || "Resposta gerada.");
     } catch (error) {
       setStatus(error.message || "Erro ao gerar resposta.");
