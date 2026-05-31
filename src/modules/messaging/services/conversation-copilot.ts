@@ -56,6 +56,14 @@ function getOpening(input: ConversationCopilotInput) {
   const contactName = (input.contactName || input.companyName).split(/[|\-–—]/)[0].trim();
   const firstName =
     contactName && !normalize(contactName).includes("lead") ? contactName.split(/\s+/)[0] : "";
+  const alreadyStarted =
+    /^(atendente|ia sdr|voce|vocÃª|tu):/im.test(input.conversation) ||
+    generatedReplyMarkers.some((marker) => normalize(input.conversation).includes(marker));
+
+  if (alreadyStarted) {
+    return firstName ? `${firstName},` : "";
+  }
+
   const hour = Number(
     new Date().toLocaleString("pt-BR", {
       hour: "numeric",
@@ -234,7 +242,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
       leadStatus: "replied",
       nextAction: "Explicar servicos da MD e entender prioridade do cliente.",
       reply: cleanReply(
-        `${opening} Temos sim. Alem de trafego, a MD pode atuar com social media estrategico, posicionamento da marca, criativos, campanhas, captacao de leads, organizacao comercial e acompanhamento dos resultados. O ideal nao e escolher servico solto, e entender o que precisa vender mais primeiro. Hoje voce sente mais falta de aparecer melhor, gerar leads ou converter quem ja chama?`
+        `${opening} Temos sim. Alem de trafego, a MD pode atuar com social media estrategico, posicionamento da marca, criativos, campanhas, captacao de leads, organizacao comercial e acompanhamento dos resultados. Como voce falou que quer vender mais, eu olharia primeiro qual canal pode trazer oportunidade mais rapido e onde a venda esta travando.`
       ),
       summary: "Lead perguntou o que mais a MD faz. Resposta deve abrir o escopo e qualificar prioridade."
     };
@@ -289,7 +297,7 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
       leadStatus: "replied",
       nextAction: "Conduzir para diagnostico de vendas e marketing.",
       reply: cleanReply(
-        `${opening} Perfeito, vender mais e exatamente o ponto. A MD nao entra so para postar ou subir trafego: primeiro a gente entende oferta, publico, criativos, canais de captacao e como esses contatos sao atendidos. Assim da para descobrir o que traz venda mais rapido. Pelo seu momento, eu faria um diagnostico curto para ver se o caminho e social media, trafego, campanha de captacao ou ajuste comercial.`
+        `${opening} perfeito. Se o objetivo e vender mais, eu nao comecaria escolhendo servico solto. A gente precisa olhar oferta, publico, criativos, canais de captacao e atendimento. Pelo que voce trouxe, o diagnostico inicial seria entender se falta demanda, se a mensagem nao convence ou se os contatos chegam e nao viram venda.`
       ),
       summary: "Lead deixou claro que objetivo principal e vender mais. Proximo passo: diagnostico comercial."
     };

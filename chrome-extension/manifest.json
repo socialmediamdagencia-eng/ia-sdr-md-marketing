@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Copiloto WhatsApp MD Marketing",
   "description": "Painel assistido da IA SDR para WhatsApp Web.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "content_scripts": [
     {
       "css": ["styles.css"],

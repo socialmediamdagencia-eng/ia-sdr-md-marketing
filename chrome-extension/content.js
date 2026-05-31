@@ -150,6 +150,56 @@
     }) || fields.at(-1);
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function clearComposer(composer) {
+    composer.focus();
+    document.execCommand("selectAll", false);
+    document.execCommand("delete", false);
+    while (composer.firstChild) {
+      composer.removeChild(composer.firstChild);
+    }
+    composer.textContent = "";
+    composer.innerHTML = "";
+    composer.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  async function fillComposerOnce(composer, nextText) {
+    clearComposer(composer);
+    await navigator.clipboard.writeText(nextText).catch(() => undefined);
+
+    try {
+      const clipboard = new DataTransfer();
+      clipboard.setData("text/plain", nextText);
+      composer.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: clipboard
+        })
+      );
+      await sleep(180);
+    } catch {
+      // Older Chromium builds can block synthetic ClipboardEvent data.
+    }
+
+    if (!normalizeText(composer.innerText || composer.textContent || "")) {
+      document.execCommand("insertText", false, nextText);
+      composer.dispatchEvent(new Event("input", { bubbles: true }));
+      await sleep(80);
+    }
+
+    const finalText = dedupeReply(composer.innerText || composer.textContent || "");
+
+    if (normalizeText(finalText) !== normalizeText(nextText)) {
+      clearComposer(composer);
+      document.execCommand("insertText", false, nextText);
+      composer.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
   async function insertMessage(message) {
     if (isInserting) {
       setStatus("Ja estou preenchendo a resposta.");
@@ -178,30 +228,8 @@
     }
 
     isInserting = true;
-    composer.focus();
-    document.execCommand("selectAll", false);
-    document.execCommand("delete", false);
-    while (composer.firstChild) {
-      composer.removeChild(composer.firstChild);
-    }
-    composer.textContent = "";
-    composer.innerHTML = "";
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" }));
-
-    document.execCommand("insertText", false, nextText);
-    composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: nextText }));
+    await fillComposerOnce(composer, nextText);
     lastInsertedMessage = nextText;
-    window.setTimeout(() => {
-      const afterText = dedupeReply(composer.innerText || composer.textContent || "");
-
-      if (normalizeText(afterText) !== normalizeText(nextText) && normalizeText(afterText).includes(normalizeText(nextText))) {
-        composer.focus();
-        document.execCommand("selectAll", false);
-        document.execCommand("delete", false);
-        document.execCommand("insertText", false, nextText);
-        composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: nextText }));
-      }
-    }, 80);
     setStatus("Resposta preenchida uma unica vez. Revise e aperte enviar.");
     window.setTimeout(() => {
       isInserting = false;
