@@ -90,7 +90,8 @@
       return {
         conversation: messages.slice(-20).map((message) => `${message.direction}: ${message.text}`).join("\n"),
         latestCustomerMessage:
-          [...messages].reverse().find((message) => message.direction === "Cliente")?.text || ""
+          [...messages].reverse().find((message) => message.direction === "Cliente")?.text || "",
+        messages: messages.slice(-20)
       };
     }
 
@@ -118,7 +119,8 @@
 
     return {
       conversation: useful.join("\n"),
-      latestCustomerMessage: useful.at(-1) || ""
+      latestCustomerMessage: useful.at(-1) || "",
+      messages: useful.map((line) => ({ direction: "Cliente", text: line }))
     };
   }
 
@@ -221,19 +223,42 @@
     const conversation = document.querySelector("#md-copilot-conversation");
     const companyName = document.querySelector("#md-copilot-company");
     const objective = document.querySelector("#md-copilot-objective");
-    const latestCustomerMessage = conversation.dataset.latestCustomerMessage || "";
 
     isGenerating = true;
     button.disabled = true;
     setStatus("Analisando conversa...");
 
     try {
+      const freshContext = getConversationContext();
+      const freshConversation = freshContext.conversation || "";
+      const freshLatestCustomerMessage = freshContext.latestCustomerMessage || "";
+      const freshContactName = getChatName() || companyName.value || "Lead WhatsApp";
+      const freshMessages = freshContext.messages || [];
+
+      console.log("LATEST LEAD:", freshLatestCustomerMessage);
+      console.log("CONVERSATION:", freshConversation);
+
+      if (!freshConversation) {
+        throw new Error("Não foi possível capturar a conversa atual.");
+      }
+
+      if (!freshLatestCustomerMessage) {
+        throw new Error(
+          "Não foi possível identificar a última mensagem do lead. Atualize a conversa e tente novamente."
+        );
+      }
+
+      conversation.value = freshConversation;
+      companyName.value = freshContactName;
+      conversation.dataset.latestCustomerMessage = freshLatestCustomerMessage;
+
       const response = await fetch(API_URL, {
         body: JSON.stringify({
-          companyName: companyName.value,
-          contactName: firstName(companyName.value),
-          conversation: conversation.value,
-          latestCustomerMessage,
+          companyName: freshContactName,
+          contactName: firstName(freshContactName),
+          conversation: freshConversation,
+          latestCustomerMessage: freshLatestCustomerMessage,
+          messages: freshMessages,
           objective: objective.value
         }),
         headers: { "Content-Type": "application/json" },
