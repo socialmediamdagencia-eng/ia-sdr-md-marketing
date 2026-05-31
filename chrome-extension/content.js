@@ -2,8 +2,8 @@
   const API_URL = "https://ia-sdr-md-marketing.vercel.app/api/copilot/suggest";
   const PANEL_ID = "md-copilot-panel";
   const LAUNCHER_ID = "md-copilot-launcher";
-  let lastInsertedMessage = "";
   let isInserting = false;
+  let isGenerating = false;
 
   function waitForBody() {
     if (document.body) {
@@ -142,6 +142,11 @@
   }
 
   function findComposer() {
+    const active = document.activeElement;
+    if (active?.isContentEditable) {
+      return active;
+    }
+
     const fields = Array.from(document.querySelectorAll('[contenteditable="true"]'));
     return fields.reverse().find((field) => {
       const label = field.getAttribute("aria-label") || "";
@@ -156,30 +161,15 @@
 
   function clearComposer(composer) {
     composer.focus();
-    document.execCommand("selectAll", false);
-    document.execCommand("delete", false);
-    while (composer.firstChild) {
-      composer.removeChild(composer.firstChild);
-    }
     composer.textContent = "";
-    composer.innerHTML = "";
-    composer.dispatchEvent(new Event("input", { bubbles: true }));
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true }));
   }
 
-  async function fillComposerOnce(composer, nextText) {
-    clearComposer(composer);
-    document.execCommand("insertText", false, nextText);
-    composer.dispatchEvent(new Event("input", { bubbles: true }));
-    await sleep(80);
-
-    const finalText = dedupeReply(composer.innerText || composer.textContent || "");
-    const duplicatedText = `${normalizeText(nextText)} ${normalizeText(nextText)}`;
-
-    if (normalizeText(finalText) === duplicatedText || normalizeText(finalText) !== normalizeText(nextText)) {
-      clearComposer(composer);
-      composer.appendChild(document.createTextNode(nextText));
-      composer.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+  async function setComposerText(composer, nextText) {
+    composer.focus();
+    composer.textContent = nextText;
+    composer.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await sleep(120);
   }
 
   async function insertMessage(message) {
@@ -202,20 +192,15 @@
       return;
     }
 
-    const currentText = dedupeReply(composer.innerText || composer.textContent || "");
-
-    if (normalizeText(currentText) === normalizeText(nextText) || normalizeText(currentText).includes(normalizeText(nextText)) || normalizeText(lastInsertedMessage) === normalizeText(nextText)) {
-      setStatus("Essa resposta ja esta no campo. Revise e aperte enviar.");
-      return;
-    }
-
     isInserting = true;
-    await fillComposerOnce(composer, nextText);
-    lastInsertedMessage = nextText;
-    setStatus("Resposta preenchida uma unica vez. Revise e aperte enviar.");
-    window.setTimeout(() => {
+
+    try {
+      clearComposer(composer);
+      await setComposerText(composer, nextText);
+      setStatus("Resposta preenchida. Revise e aperte enviar.");
+    } finally {
       isInserting = false;
-    }, 1200);
+    }
   }
 
   function setStatus(message) {
@@ -226,6 +211,11 @@
   }
 
   async function suggest() {
+    if (isGenerating) {
+      setStatus("Ja estou gerando uma resposta. Aguarde um momento.");
+      return;
+    }
+
     const button = document.querySelector("#md-copilot-generate");
     const result = document.querySelector("#md-copilot-result");
     const conversation = document.querySelector("#md-copilot-conversation");
@@ -233,6 +223,7 @@
     const objective = document.querySelector("#md-copilot-objective");
     const latestCustomerMessage = conversation.dataset.latestCustomerMessage || "";
 
+    isGenerating = true;
     button.disabled = true;
     setStatus("Analisando conversa...");
 
@@ -257,11 +248,11 @@
       const cleanReply = dedupeReply(payload.reply || "");
       result.textContent = cleanReply;
       result.dataset.reply = cleanReply;
-      lastInsertedMessage = "";
       setStatus(payload.nextAction || "Resposta gerada.");
     } catch (error) {
       setStatus(error.message || "Erro ao gerar resposta.");
     } finally {
+      isGenerating = false;
       button.disabled = false;
     }
   }
@@ -349,12 +340,15 @@
     });
     panel.querySelector("#md-copilot-insert").addEventListener("click", async (event) => {
       const button = event.currentTarget;
+      if (isInserting) {
+        setStatus("Ja estou preenchendo a resposta.");
+        return;
+      }
+
       button.disabled = true;
       const reply = panel.querySelector("#md-copilot-result").dataset.reply || "";
       await insertMessage(reply);
-      window.setTimeout(() => {
-        button.disabled = false;
-      }, 1200);
+      button.disabled = false;
     });
   }
 

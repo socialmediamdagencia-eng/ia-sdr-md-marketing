@@ -85,6 +85,8 @@ function latestCustomerMessage(input: ConversationCopilotInput) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+
+  // Prioridade 1: Linhas explicitamente marcadas como cliente/lead
   const explicitCustomerLines = lines
     .filter((line) => /^(cliente|lead|contato):/i.test(line))
     .map(stripSpeaker)
@@ -94,6 +96,44 @@ function latestCustomerMessage(input: ConversationCopilotInput) {
     return explicitCustomerLines.at(-1) ?? "";
   }
 
+  // Prioridade 2: Se conversa já começou, ignora saudações e pega última útil do cliente
+  const hasConversationStarted = /^(atendente|ia sdr|voce|você|tu):/im.test(input.conversation);
+  
+  if (hasConversationStarted) {
+    // Separa mensagens de atendente e cliente por ordem de aparição
+    const messageBlocks = lines.reduce(
+      (acc: Array<{ type: string; lines: string[] }>, line) => {
+        const isAttendeeMsg = /^(atendente|ia sdr|voce|você|tu):/i.test(line);
+        const lastBlock = acc.at(-1);
+
+        if (lastBlock && lastBlock.type === (isAttendeeMsg ? "attendee" : "customer")) {
+          lastBlock.lines.push(stripSpeaker(line));
+        } else {
+          acc.push({
+            type: isAttendeeMsg ? "attendee" : "customer",
+            lines: [stripSpeaker(line)]
+          });
+        }
+
+        return acc;
+      },
+      []
+    );
+
+    // Pega última mensagem de cliente
+    const lastCustomerBlock = [...messageBlocks].reverse().find((block) => block.type === "customer");
+    if (lastCustomerBlock) {
+      const customerMessage = lastCustomerBlock.lines
+        .filter((line) => !isNoise(line))
+        .join(" ")
+        .trim();
+      if (customerMessage) {
+        return customerMessage;
+      }
+    }
+  }
+
+  // Fallback: Última linha útil que não seja de atendente
   const usefulLines = lines
     .filter((line) => !/^(atendente|ia sdr|voce|você|tu):/i.test(line))
     .map(stripSpeaker)
@@ -191,22 +231,21 @@ function getIntentFlags(input: ConversationCopilotInput) {
   };
 }
 
-function shouldUseLocalSalesBrain(input: ConversationCopilotInput) {
-  const flags = getIntentFlags(input);
+function hasContextInsufficient(input: ConversationCopilotInput): boolean {
+  const latest = latestCustomerMessage(input);
+  const normalizedLatest = normalize(latest);
 
-  return (
-    flags.meetingSignal ||
-    flags.trafficObjection ||
-    flags.asksServices ||
-    flags.asksOnlyTraffic ||
-    flags.casualCoffee ||
-    flags.conversionProblem ||
-    flags.doubts ||
-    flags.asksPrice ||
-    flags.asksProposal ||
-    flags.salesIntent ||
-    flags.wantsMarketing
-  );
+  // Contexto insuficiente se última mensagem for muito curta ou vazia
+  if (!normalizedLatest || normalizedLatest.length < 3) {
+    return true;
+  }
+
+  // Se conversa inteira for muito curta
+  if (normalize(input.conversation).length < 20) {
+    return true;
+  }
+
+  return false;
 }
 
 function cleanReply(reply: string) {
@@ -256,6 +295,24 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
   }
 
   if (flags.conversionProblem) {
+    const hasMultipleLead = normalize(latestCustomerMessage(input)).includes("muitos") ||
+      normalize(latestCustomerMessage(input)).includes("muito");
+    const hasCuriousKeyword = normalize(latestCustomerMessage(input)).includes("curiosos") ||
+      normalize(latestCustomerMessage(input)).includes("converter");
+
+    // Tratamento específico: "muitos leads mas são curiosos"
+    if (hasMultipleLead && hasCuriousKeyword) {
+      return {
+        leadStatus: "replied",
+        nextAction: "Diagnosticar: promessa da campanha, filtro de público, qualificação no atendimento.",
+        reply: cleanReply(
+          `${opening} Muitos curiosos é sintoma de um dos tres: a promessa da campanha atrai errado, o filtro do publico nao e preciso, ou o atendimento nao qualifica rapido. A MD ajusta esses tres pontos. Quando chegam esses leads, voce tenta vender logo ou conversa um pouco para entender se faz sentido?`
+        ),
+        summary: "Lead tem volume mas baixa qualidade de leads. Resposta: diagnosticar origem da curiosidade (campanha, publico ou atendimento) e entender processo atual."
+      };
+    }
+
+    // Fallback genérico para conversionProblem
     return {
       leadStatus: "replied",
       nextAction: "Diagnosticar qualidade dos leads e gargalo de conversao.",
@@ -397,63 +454,99 @@ function text(value: unknown, fallback: string) {
 export async function analyzeConversation(
   input: ConversationCopilotInput
 ): Promise<ConversationCopilotOutput> {
-  const fallback = fallbackReply(input);
-
-  if (!isAiConfigured() || shouldUseLocalSalesBrain(input)) {
-    return fallback;
+  // Se IA não configurada ou contexto insuficiente, usa fallback
+  if (!isAiConfigured() || hasContextInsufficient(input)) {
+    return fallbackReply(input);
   }
 
   try {
+    const latestMsg = latestCustomerMessage(input);
+    const isConversationStarted = generatedReplyMarkers.some((marker) =>
+      normalize(input.conversation).includes(marker)
+    );
+
     const content = await generateChatCompletion([
       {
-        content:
-          "Voce e a IA SDR senior da MD Marketing. Responda a ultima mensagem real do cliente no WhatsApp, com estrategia comercial, sem repetir respostas anteriores. Responda somente JSON valido.",
+        content: `Voce e a IA SDR senior da MD Marketing. Sua missao: responder a ultima mensagem REAL do cliente no WhatsApp com uma resposta consultiva, humana e estrategica. 
+
+REGRAS OBRIGATORIAS:
+1. Responda EXATAMENTE a ultima mensagem do cliente, nao a conversas antigas.
+2. Nunca repita saudacoes (Bom dia, Boa tarde, Boa noite) se a conversa ja comecou.
+3. Nao repita o nome do cliente em toda resposta - use apenas uma vez no maximo.
+4. Responda sempre de forma CURTA e natural - maximo 3-4 linhas.
+5. Identifique a dor, objecao ou estgio da conversa e responda com precisao.
+6. Termine SEMPRE com uma pergunta estrategica que avan a conversa.
+7. Nunca responda de forma generica como "me conta mais" - seja especifico.
+8. Nao prometa resultado garantido ou percentual.
+9. Mantenha tom humano, consultivo, direto - nao robota.
+10. NUNCA mencione que voce e IA.
+
+ESTILO MD MARKETING:
+- Foco em VENDA e RESULTADO comercial, nao em "atividades"
+- Compreenda: "trafego sozinho nao vende, precisa de oferta, comunicacao e funil"
+- Desafios comuns: baixa qualificacao, curiosos vs leads reais, falta de processo comercial
+
+Responda APENAS com JSON valido, sem explicacoes adicionais.`,
         role: "system"
       },
       {
         content: JSON.stringify({
-          input: {
-            ...input,
-            latestCustomerMessage: latestCustomerMessage(input)
+          situacao: {
+            nomeContato: input.contactName || input.companyName,
+            conversaCompleta: input.conversation,
+            ultimaMensagemCliente: latestMsg,
+            objetivo: input.objective,
+            doresdoLead: input.pains,
+            ofertaRecomendada: input.recommendedOffer,
+            conversaJaComecou: isConversationStarted
           },
           contextMdMarketing: {
-            positioning:
+            posicionamento:
               "Marketing conectado a vendas: posicionamento, oferta, criativos, campanhas, captacao de leads, CRM, atendimento e acompanhamento comercial.",
-            principle:
-              "Nao vender trafego como solucao magica. Trafego e ferramenta; venda depende de oferta, comunicacao, funil e atendimento.",
-            goal:
-              "Conduzir para diagnostico ou reuniao quando houver abertura, mantendo conversa humana."
+            principio:
+              "Trafego e ferramenta. O que vende mesmo: oferta clara, comunicacao boa, atendimento rapido e funil bem acompanhado.",
+            objetivo:
+              "Conduzir para diagnostico ou reuniao quando houver abertura, sem perder humanidade na conversa.",
+            processoDaVenda: [
+              "1. Entender o que o cliente vende",
+              "2. Identificar cliente ideal dele",
+              "3. Descobrir onde a venda trava",
+              "4. Montar estrategia: posicionamento, criativos, campanhas, captacao",
+              "5. Acompanhar para resultado"
+            ]
           },
-          expectedJson: {
+          formatoEsperado: {
             leadStatus: "contacted | replied | meeting_scheduled | proposal_sent | won | lost",
-            nextAction: "string",
-            reply: "string curta para WhatsApp em portugues do Brasil",
-            summary: "string"
-          },
-          rules: [
-            "Responda a ultima mensagem do cliente, nao ao assunto antigo.",
-            "Nao repita frases que ja apareceram na conversa.",
-            "Comece com bom dia, boa tarde ou boa noite conforme Sao Paulo.",
-            "Chame pelo primeiro nome quando existir.",
-            "Se houver objecao, concorde parcialmente, reposicione e avance com pergunta inteligente.",
-            "Se perguntarem se a MD faz apenas trafego, explique que trafego e uma ferramenta dentro de uma estrategia maior.",
-            "Se a pessoa falar algo casual, acompanhe brevemente e volte ao objetivo comercial.",
-            "Use tom humano, consultivo e direto.",
-            "Nao mencione que e IA."
-          ]
+            nextAction: "string curta com proxima acao para o SDR",
+            reply: "CURTA - max 3-4 linhas - resposta pronta para copiar no WhatsApp",
+            summary: "string - resumo do que foi dito e proximo passo"
+          }
         }),
         role: "user"
       }
     ]);
+
     const payload = parseJsonObject(content);
+
+    // Valida resposta: se vazia ou muito genérica, usa fallback
+    const reply = text(payload.reply, "");
+    if (
+      !reply ||
+      reply.length < 10 ||
+      normalize(reply).includes("me conta mais") ||
+      normalize(reply).includes("tudo bem")
+    ) {
+      return fallbackReply(input);
+    }
 
     return {
       leadStatus: parseStatus(payload.leadStatus),
-      nextAction: text(payload.nextAction, fallback.nextAction),
-      reply: cleanReply(text(payload.reply, fallback.reply)),
-      summary: text(payload.summary, fallback.summary)
+      nextAction: text(payload.nextAction, fallbackReply(input).nextAction),
+      reply: cleanReply(reply),
+      summary: text(payload.summary, fallbackReply(input).summary)
     };
   } catch {
-    return fallback;
+    // Se IA falhar, volta para fallback
+    return fallbackReply(input);
   }
 }
