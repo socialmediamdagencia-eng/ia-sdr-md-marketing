@@ -152,7 +152,18 @@ function getIntentFlags(input: ConversationCopilotInput) {
       "trafego",
       "tráfego"
     ]),
-    hasServiceContext: hasAny(fullText, ["social media", "trafego", "tráfego", "marketing", "anuncio", "anúncio"])
+    hasServiceContext: hasAny(fullText, ["social media", "trafego", "tráfego", "marketing", "anuncio", "anúncio"]),
+    salesIntent: hasAny(decisionText, [
+      "quero vender",
+      "vender mais",
+      "venda",
+      "vendas",
+      "cliente",
+      "clientes",
+      "faturar",
+      "faturamento",
+      "crescer"
+    ])
   };
 }
 
@@ -167,12 +178,35 @@ function shouldUseLocalSalesBrain(input: ConversationCopilotInput) {
     flags.casualCoffee ||
     flags.asksPrice ||
     flags.asksProposal ||
+    flags.salesIntent ||
     flags.wantsMarketing
   );
 }
 
 function cleanReply(reply: string) {
-  const paragraphs = reply
+  const normalized = reply.trim();
+  const compact = normalized.replace(/\s+/g, " ");
+
+  for (let size = Math.floor(compact.length / 2); size > 25; size -= 1) {
+    const left = compact.slice(0, size).trim();
+    const right = compact.slice(size).trim();
+
+    if (left && right && normalize(left) === normalize(right)) {
+      return left;
+    }
+  }
+
+  const firstSentenceMatch = compact.match(/^(.{20,260}?[.!?])\s+\1/i);
+  if (firstSentenceMatch) {
+    return compact.replace(firstSentenceMatch[0], firstSentenceMatch[1] + " ").trim();
+  }
+
+  const repeatedOpening = compact.match(/^(.{40,500}[?!\.])\s*(Boa (?:noite|tarde|dia),? [^!]+! .+)$/i);
+  if (repeatedOpening && normalize(repeatedOpening[1]) === normalize(repeatedOpening[2])) {
+    return repeatedOpening[1].trim();
+  }
+
+  const paragraphs = normalized
     .split(/\n+/)
     .map((line) => line.trim())
     .filter(Boolean);
@@ -247,6 +281,17 @@ function fallbackReply(input: ConversationCopilotInput): ConversationCopilotOutp
         `${opening} Consigo te passar uma direcao sim. Mas para nao te mandar um valor solto, preciso entender o principal objetivo: gerar mais leads, melhorar posicionamento ou estruturar melhor o comercial? Com isso eu te digo o caminho mais adequado.`
       ),
       summary: "Lead pediu valor/proposta. Melhor resposta: qualificar necessidade antes de precificar."
+    };
+  }
+
+  if (flags.salesIntent) {
+    return {
+      leadStatus: "replied",
+      nextAction: "Conduzir para diagnostico de vendas e marketing.",
+      reply: cleanReply(
+        `${opening} Perfeito, vender mais e exatamente o ponto. A MD nao entra so para postar ou subir trafego: primeiro a gente entende oferta, publico, criativos, canais de captacao e como esses contatos sao atendidos. Assim da para descobrir o que traz venda mais rapido. Pelo seu momento, eu faria um diagnostico curto para ver se o caminho e social media, trafego, campanha de captacao ou ajuste comercial.`
+      ),
+      summary: "Lead deixou claro que objetivo principal e vender mais. Proximo passo: diagnostico comercial."
     };
   }
 

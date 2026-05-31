@@ -37,6 +37,39 @@
       .trim();
   }
 
+  function normalizeText(text) {
+    return String(text || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim();
+  }
+
+  function dedupeReply(text) {
+    const value = String(text || "").replace(/\s+/g, " ").trim();
+
+    for (let size = Math.floor(value.length / 2); size > 25; size -= 1) {
+      const left = value.slice(0, size).trim();
+      const right = value.slice(size).trim();
+
+      if (left && right && normalizeText(left) === normalizeText(right)) {
+        return left;
+      }
+    }
+
+    const sentences = value.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const finalSentences = [];
+
+    sentences.forEach((sentence) => {
+      if (!finalSentences.some((saved) => normalizeText(saved) === normalizeText(sentence))) {
+        finalSentences.push(sentence);
+      }
+    });
+
+    return finalSentences.join(" ").trim();
+  }
+
   function getConversationContext() {
     const bubbles = Array.from(document.querySelectorAll("[data-pre-plain-text]"));
     const messages = bubbles
@@ -130,22 +163,24 @@
       return;
     }
 
-    const nextText = String(message || "").trim();
+    const nextText = dedupeReply(message);
 
     if (!nextText) {
       setStatus("Gere uma resposta antes de preencher.");
       return;
     }
 
-    const currentText = (composer.innerText || composer.textContent || "").trim();
+    const currentText = dedupeReply(composer.innerText || composer.textContent || "");
 
-    if (currentText === nextText || currentText.includes(nextText) || lastInsertedMessage === nextText) {
+    if (normalizeText(currentText) === normalizeText(nextText) || normalizeText(currentText).includes(normalizeText(nextText)) || normalizeText(lastInsertedMessage) === normalizeText(nextText)) {
       setStatus("Essa resposta ja esta no campo. Revise e aperte enviar.");
       return;
     }
 
     isInserting = true;
     composer.focus();
+    document.execCommand("selectAll", false);
+    document.execCommand("delete", false);
     while (composer.firstChild) {
       composer.removeChild(composer.firstChild);
     }
@@ -156,7 +191,18 @@
     document.execCommand("insertText", false, nextText);
     composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: nextText }));
     lastInsertedMessage = nextText;
-    setStatus("Resposta preenchida. Revise e aperte enviar.");
+    window.setTimeout(() => {
+      const afterText = dedupeReply(composer.innerText || composer.textContent || "");
+
+      if (normalizeText(afterText) !== normalizeText(nextText) && normalizeText(afterText).includes(normalizeText(nextText))) {
+        composer.focus();
+        document.execCommand("selectAll", false);
+        document.execCommand("delete", false);
+        document.execCommand("insertText", false, nextText);
+        composer.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: nextText }));
+      }
+    }, 80);
+    setStatus("Resposta preenchida uma unica vez. Revise e aperte enviar.");
     window.setTimeout(() => {
       isInserting = false;
     }, 1200);
@@ -198,8 +244,9 @@
         throw new Error(payload.error || "A IA nao respondeu agora.");
       }
 
-      result.textContent = payload.reply || "";
-      result.dataset.reply = payload.reply || "";
+      const cleanReply = dedupeReply(payload.reply || "");
+      result.textContent = cleanReply;
+      result.dataset.reply = cleanReply;
       setStatus(payload.nextAction || "Resposta gerada.");
     } catch (error) {
       setStatus(error.message || "Erro ao gerar resposta.");
